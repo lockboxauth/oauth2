@@ -63,7 +63,7 @@ func (g *googleIDGranter) Grant(ctx context.Context, scopes []string) grants.Gra
 		ProfileID:  g.userID,
 		ClientID:   g.client,
 		Scopes:     scopes,
-		Used:       true,
+		Used:       false,
 	}
 }
 

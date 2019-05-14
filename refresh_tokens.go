@@ -28,7 +28,7 @@ func (s Service) issueTokens(ctx context.Context, grant grants.Grant) (Token, AP
 	return Token{
 		AccessToken:  access,
 		TokenType:    "Bearer",
-		ExpiresIn:    3600, // TODO(paddy): don't hardcode expiry
+		ExpiresIn:    s.TokenExpiresIn,
 		RefreshToken: refresh,
 		Scope:        strings.Join([]string(grant.Scopes), ","),
 	}, APIError{}
@@ -66,7 +66,7 @@ func (r *refreshTokenGranter) Grant(ctx context.Context, scopes []string) grants
 		Scopes:     r.token.Scopes,
 		ProfileID:  r.token.ProfileID,
 		ClientID:   r.token.ClientID,
-		Used:       true,
+		Used:       false,
 	}
 }
 

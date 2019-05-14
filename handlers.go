@@ -3,16 +3,18 @@ package oauth2
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc"
+	oidc "github.com/coreos/go-oidc"
 	yall "yall.in"
 
 	"impractical.co/auth/accounts"
+	"impractical.co/auth/clients"
 	"impractical.co/auth/grants"
 	"impractical.co/auth/scopes"
 )
@@ -26,9 +28,11 @@ var (
 type Service struct {
 	GoogleIDVerifier *oidc.IDTokenVerifier
 	GoogleClients    []string
+	TokenExpiresIn   int
 	Accounts         accounts.Dependencies
-	Scopes           scopes.Dependencies
+	Clients          clients.Storer
 	Grants           grants.Dependencies
+	Scopes           scopes.Dependencies
 	Log              *yall.Logger
 }
 
@@ -101,6 +105,11 @@ func mergeQueryParams(paramSets ...url.Values) url.Values {
 // return an error, either as JSON output or as a redirect.
 func (s Service) returnError(redirect bool, w http.ResponseWriter, r *http.Request, apiErr APIError, redirBase string) {
 	if redirect {
+		if redirBase == "" {
+			yall.FromContext(r.Context()).Error("redirecting but no redirectURL set")
+			s.returnError(false, w, r, invalidRequestError, redirBase)
+			return
+		}
 		u, err := url.Parse(redirBase)
 		if err != nil {
 			yall.FromContext(r.Context()).WithError(err).WithField("url", redirBase).Error("Error parsing redirect URL")
@@ -169,12 +178,25 @@ func getClientCredentials(r *http.Request) (id, secret, redirect string) {
 // check that the client credentials are valid
 func (s Service) validateClientCredentials(ctx context.Context, clientID, clientSecret, redirectURI string) APIError {
 	if clientID == "" {
-		// TODO(paddy): return appropriate error
+		return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
 	}
 	if clientSecret != "" && redirectURI != "" {
-		// TODO(paddy): return appropriate error
+		return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
 	}
-	// TODO(paddy): retrieve client, and validate the credentials
+	client, err := s.Clients.Get(ctx, clientID)
+	if err != nil {
+		if err == clients.ErrClientNotFound {
+			return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
+		}
+		return serverError
+	}
+	err = client.CheckSecret(clientSecret)
+	if err != nil {
+		if err == clients.ErrIncorrectSecret {
+			return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
+		}
+		return serverError
+	}
 	return APIError{}
 }
 
@@ -208,28 +230,50 @@ func (s Service) checkScopes(ctx context.Context, clientID string, ids []string)
 
 // determine what redirect URI to use for the client
 func (s Service) getClientRedirectURI(ctx context.Context, clientID, passed string) (string, error) {
-	// TODO(paddy): look up client's redirect URIs
-	// if client has multiple redirect URIs and passed is empty, return an error
-	// if client has one redirect URI and passed is empty, return that URL
-	// if client has multiple redirect URIs and passed is a match of one, return that one
-	// if client has multiple redirect URIs and passed is not a match for any, return an error
-	// if client has no redirect URIs and passed is not empty, return an error
-	return "", nil
+	uris, err := s.Clients.ListRedirectURIs(ctx, clientID)
+	if err != nil {
+		return "", err
+	}
+	if len(uris) < 1 && passed == "" {
+		return "", nil
+	}
+	if len(uris) > 1 && passed == "" {
+		return "", errors.New("client has multiple redirect URIs, none passed")
+	}
+	if len(uris) == 1 && passed == "" {
+		return uris[0].URI, nil
+	}
+	if len(uris) > 1 && passed != "" {
+		for _, uri := range uris {
+			if passed == uri.URI {
+				return uri.URI, nil
+			}
+		}
+		return "", errors.New("passed URI not a client URI")
+	}
+	if len(uris) < 1 && passed != "" {
+		return "", errors.New("client has no URIs, but one was passed")
+	}
+	return "", errors.New("should be unreachable")
 }
 
 // create a grant in the Storer
-func (s Service) createGrant(ctx context.Context, grant grants.Grant) APIError {
+func (s Service) createGrant(ctx context.Context, grant grants.Grant) (grants.Grant, APIError) {
 	grant, err := grants.FillGrantDefaults(grant)
 	if err != nil {
 		yall.FromContext(ctx).WithError(err).Error("Error filling grant defaults")
-		return serverError
+		return grant, serverError
 	}
 	err = s.Grants.Storer.CreateGrant(ctx, grant)
 	if err != nil {
+		if err == grants.ErrGrantSourceAlreadyUsed {
+			yall.FromContext(ctx).Debug("grant source already used")
+			return grant, invalidGrantError
+		}
 		yall.FromContext(ctx).WithError(err).WithField("grant", grant).Error("Error creating grant")
-		return serverError
+		return grant, serverError
 	}
-	return APIError{}
+	return grant, APIError{}
 }
 
 // determine which type of grant is being used based on the query params
@@ -248,6 +292,12 @@ func (s Service) getGranter(values url.Values, clientID string) granter {
 			oidcVerifier: s.GoogleIDVerifier,
 			accounts:     s.Accounts.Storer,
 		}
+	case "email":
+		// TODO: implement an email based auth flow
+		/*return &emailGranter{
+			client:   clientID,
+			accounts: s.Accounts.Storer,
+		}*/
 	}
 	return nil
 }
@@ -257,29 +307,33 @@ func (s Service) getGranter(values url.Values, clientID string) granter {
 // access token.
 func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request) {
 	// explicitly parse the form, so we can handle the error
+	log := yall.FromContext(r.Context())
 	err := r.ParseForm()
 	if err != nil {
-		yall.FromContext(r.Context()).WithError(err).Error("Error parsing form")
+		log.WithError(err).Error("Error parsing form")
 		s.returnError(false, w, r, invalidRequestError, "")
 		return
 	}
 
 	// figure out which client we're dealing with
 	clientID, clientSecret, redirectURI := getClientCredentials(r)
+	log = log.WithField("oauth2_client_id", clientID).WithField("redirect_uri_given", redirectURI)
 
 	// make sure the client is who they say they are
-	clientErr := s.validateClientCredentials(r.Context(), clientID, clientSecret, redirectURI)
+	clientErr := s.validateClientCredentials(yall.InContext(r.Context(), log), clientID, clientSecret, redirectURI)
 	if !clientErr.IsZero() {
-		yall.FromContext(r.Context()).WithField("api_error", clientErr).Debug("Error validating client")
+		log.WithField("api_error", clientErr).Debug("Error validating client")
 		s.returnError(false, w, r, invalidRequestError, "")
 		return
 	}
+
+	log.WithField("grant_type", r.PostForm.Get("grant_type"))
 
 	// figure out what type of grant we're dealing with
 	g := s.getGranter(r.PostForm, clientID)
 	if g == nil {
 		// if g is nil, that means it's not a match for our supported types
-		yall.FromContext(r.Context()).WithField("grant_type", r.PostForm.Get("grant_type")).Debug("Unsupported grant type")
+		log.Debug("Unsupported grant type")
 		s.returnError(false, w, r, APIError{
 			Error: "unsupported_response_type",
 			Code:  http.StatusBadRequest,
@@ -288,33 +342,36 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	// figure out which redirect URI to use for our client
-	redirectURI, err = s.getClientRedirectURI(r.Context(), clientID, redirectURI)
+	redirectURI, err = s.getClientRedirectURI(yall.InContext(r.Context(), log), clientID, redirectURI)
 	if err != nil {
-		yall.FromContext(r.Context()).WithField("client_id", clientID).WithField("redirect_url", redirectURI).
-			WithError(err).Error("Error determining redirect URI.")
+		log.WithError(err).Error("Error determining redirect URI.")
 		s.returnError(false, w, r, serverError, "")
 		return
 	}
+	log = log.WithField("redirect_uri", redirectURI)
 
 	// validate the grant
-	apiErr := g.Validate(r.Context())
+	apiErr := g.Validate(yall.InContext(r.Context(), log))
 	if !apiErr.IsZero() {
-		yall.FromContext(r.Context()).WithField("error", apiErr).Debug("Error validating grant")
+		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error validating grant")
 		s.returnError(g.Redirects(), w, r, apiErr, redirectURI)
 		return
 	}
 
 	// figure out what scopes we should be using
 	scopes := strings.Split(r.FormValue("scope"), " ")
-	scopes, apiErr = s.checkScopes(r.Context(), clientID, scopes)
+	log = log.WithField("scopes_given", scopes)
+	scopes, apiErr = s.checkScopes(yall.InContext(r.Context(), log), clientID, scopes)
 	if !apiErr.IsZero() {
-		yall.FromContext(r.Context()).WithField("error", apiErr).Debug("Error checking scopes")
+		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error checking scopes")
 		s.returnError(g.Redirects(), w, r, apiErr, redirectURI)
 		return
 	}
 
+	log = log.WithField("scopes", scopes)
+
 	// retrieve or fill out our grant fields
-	grant := g.Grant(r.Context(), scopes)
+	grant := g.Grant(yall.InContext(r.Context(), log), scopes)
 
 	// create and store our grant for granters
 	// that don't create their own
@@ -323,45 +380,57 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 		grant.CreateIP = grant.UseIP
 
 		// store the grant
-		apiErr = s.createGrant(r.Context(), grant)
+		grant, apiErr = s.createGrant(yall.InContext(r.Context(), log), grant)
 		if !apiErr.IsZero() {
-			yall.FromContext(r.Context()).WithField("error", apiErr).Debug("Error creating grant")
+			log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error creating grant")
 			s.returnError(g.Redirects(), w, r, apiErr, redirectURI)
 			return
 		}
+		log = log.WithField("grant", grant.ID)
+		log.Debug("created inline grant")
+	} else {
+		log = log.WithField("grant", grant.ID)
 	}
 
-	grant, err = s.Grants.Storer.ExchangeGrant(r.Context(), grants.GrantUse{
+	grant, err = s.Grants.Storer.ExchangeGrant(yall.InContext(r.Context(), log), grants.GrantUse{
 		Grant: grant.ID,
 		IP:    getIP(r),
 		Time:  time.Now(),
 	})
 
 	if err == grants.ErrGrantAlreadyUsed {
-		// TODO(paddy): return an appropriate error
+		log.Debug("grant reuse attempted")
+		s.returnError(g.Redirects(), w, r, APIError{Code: http.StatusBadRequest, Error: "invalid_grant"}, redirectURI)
 		return
 	} else if err == grants.ErrGrantNotFound {
-		// TODO(paddy): return an appropriate error
+		log.Debug("unknown grant presented")
+		s.returnError(g.Redirects(), w, r, APIError{Code: http.StatusBadRequest, Error: "invalid_grant"}, redirectURI)
 		return
 	} else if err != nil {
-		yall.FromContext(r.Context()).WithError(err).Error("error exchanging grant")
+		log.WithError(err).Error("error exchanging grant")
 		s.returnError(g.Redirects(), w, r, serverError, redirectURI)
 		return
 	}
 
+	log.Debug("exchanged grant")
+
 	// issue tokens using the grant
-	token, apiErr := s.issueTokens(r.Context(), grant)
+	token, apiErr := s.issueTokens(yall.InContext(r.Context(), log), grant)
 	if !apiErr.IsZero() {
-		yall.FromContext(r.Context()).WithField("error", apiErr).Debug("Error issuing tokens")
+		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error issuing tokens")
 		s.returnError(g.Redirects(), w, r, apiErr, redirectURI)
 		return
 	}
 
+	log.Debug("issued tokens")
+
 	// call any functionality that we need to to mark the grant as used
-	err = g.Granted(r.Context())
+	err = g.Granted(yall.InContext(r.Context(), log))
 	if err != nil {
-		yall.FromContext(r.Context()).WithField("grant", g).WithError(err).Error("Error marking grant as used")
+		log.WithError(err).Error("Error marking grant as used")
 	}
+
+	log.Debug("marked grant as used")
 
 	// return our tokens
 	s.returnToken(g.Redirects(), w, r, token, redirectURI)
