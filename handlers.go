@@ -17,6 +17,8 @@ import (
 	"impractical.co/auth/clients"
 	"impractical.co/auth/grants"
 	"impractical.co/auth/scopes"
+	"impractical.co/auth/sessions"
+	"impractical.co/auth/tokens"
 )
 
 var (
@@ -32,7 +34,9 @@ type Service struct {
 	Accounts         accounts.Dependencies
 	Clients          clients.Storer
 	Grants           grants.Dependencies
+	Refresh          tokens.Dependencies
 	Scopes           scopes.Dependencies
+	Sessions         sessions.Dependencies
 	Log              *yall.Logger
 }
 

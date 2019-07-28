@@ -14,13 +14,13 @@ import (
 func (s Service) issueTokens(ctx context.Context, grant grants.Grant) (Token, APIError) {
 	// generate access first, so if there's a problem
 	// the refresh token isn't just floating around, unused
-	access, err := s.Grants.IssueAccessToken(ctx, grant)
+	access, err := s.IssueAccessToken(ctx, grant)
 	if err != nil {
 		yall.FromContext(ctx).WithError(err).Error("Error generating access token")
 		return Token{}, serverError
 	}
 
-	refresh, err := s.Grants.IssueRefreshToken(ctx, grant)
+	refresh, err := s.IssueRefreshToken(ctx, grant)
 	if err != nil {
 		yall.FromContext(ctx).WithError(err).Error("Error issuing refresh token")
 		return Token{}, serverError
@@ -38,7 +38,7 @@ type refreshTokenGranter struct {
 	tokenVal string
 	token    tokens.RefreshToken
 	client   string
-	deps     grants.Dependencies
+	deps     Service
 }
 
 // Validate checks that the tokenVal and client associated with

@@ -13,12 +13,12 @@ replace (
 require (
 	darlinggo.co/trout v1.0.1
 	github.com/coreos/go-oidc v2.0.0+incompatible
-	github.com/markbates/grift v1.0.4 // indirect
+	github.com/hashicorp/go-uuid v1.0.0
 	impractical.co/auth/accounts v0.0.0
 	impractical.co/auth/clients v0.0.0
 	impractical.co/auth/grants v0.0.0
-	impractical.co/auth/hmac v0.0.0
 	impractical.co/auth/scopes v0.0.0
+	impractical.co/auth/sessions v0.0.0-20180908101947-9cd90b17e6bd
 	impractical.co/auth/tokens v0.0.0
 	impractical.co/googleid v0.0.0
 	yall.in v0.0.1
