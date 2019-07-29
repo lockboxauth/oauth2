@@ -5,10 +5,11 @@ import (
 	"time"
 
 	uuid "github.com/hashicorp/go-uuid"
-	"impractical.co/auth/grants"
-	"impractical.co/auth/sessions"
-	"impractical.co/auth/tokens"
 	yall "yall.in"
+
+	"lockbox.dev/grants"
+	"lockbox.dev/sessions"
+	"lockbox.dev/tokens"
 )
 
 type Token struct {

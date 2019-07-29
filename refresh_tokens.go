@@ -4,9 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"impractical.co/auth/grants"
-	"impractical.co/auth/tokens"
 	yall "yall.in"
+
+	"lockbox.dev/grants"
+	"lockbox.dev/tokens"
 )
 
 // issueTokens creates an access token and a refresh token based on the grant

@@ -13,12 +13,12 @@ import (
 	oidc "github.com/coreos/go-oidc"
 	yall "yall.in"
 
-	"impractical.co/auth/accounts"
-	"impractical.co/auth/clients"
-	"impractical.co/auth/grants"
-	"impractical.co/auth/scopes"
-	"impractical.co/auth/sessions"
-	"impractical.co/auth/tokens"
+	"lockbox.dev/accounts"
+	"lockbox.dev/clients"
+	"lockbox.dev/grants"
+	"lockbox.dev/scopes"
+	"lockbox.dev/sessions"
+	"lockbox.dev/tokens"
 )
 
 var (

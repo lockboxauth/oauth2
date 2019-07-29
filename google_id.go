@@ -5,12 +5,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coreos/go-oidc"
+	oidc "github.com/coreos/go-oidc"
+	"impractical.co/googleid"
 	yall "yall.in"
 
-	"impractical.co/auth/accounts"
-	"impractical.co/auth/grants"
-	"impractical.co/googleid"
+	"lockbox.dev/accounts"
+	"lockbox.dev/grants"
 )
 
 // googleIDGranter fills the granter interface for exchanging
