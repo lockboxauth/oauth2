@@ -1,5 +1,6 @@
 module impractical.co/auth/oauth2
 
+// TODO: use the real version of these
 replace (
 	impractical.co/auth/accounts v0.0.0 => ../accounts
 	impractical.co/auth/clients v0.0.0 => ../clients
@@ -7,7 +8,7 @@ replace (
 	impractical.co/auth/hmac v0.0.0 => ../hmac
 	impractical.co/auth/scopes v0.0.0 => ../scopes
 	impractical.co/auth/tokens v0.0.0 => ../tokens
-	impractical.co/googleid v0.0.0 => ../../googleid
+	impractical.co/googleid v0.0.0 => ../../impractical.co/googleid
 )
 
 require (
