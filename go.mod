@@ -13,7 +13,7 @@ replace (
 )
 
 require (
-	darlinggo.co/trout v1.0.1
+	darlinggo.co/trout/v2 v2.0.1
 	github.com/coreos/go-oidc v2.0.0+incompatible
 	github.com/hashicorp/go-uuid v1.0.0
 	impractical.co/googleid v0.0.0

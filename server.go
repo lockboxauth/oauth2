@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"darlinggo.co/trout"
+	"darlinggo.co/trout/v2"
 	yall "yall.in"
 )
 
