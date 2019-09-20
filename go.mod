@@ -10,6 +10,6 @@ require (
 	lockbox.dev/grants v0.1.0
 	lockbox.dev/scopes v0.1.0
 	lockbox.dev/sessions v0.1.0
-	lockbox.dev/tokens v0.1.0
+	lockbox.dev/tokens v0.2.0
 	yall.in v0.0.1
 )
