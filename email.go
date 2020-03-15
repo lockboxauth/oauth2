@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"context"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -25,7 +26,8 @@ const (
 // emailed to them as a link, they'll click the link, and end that link
 // will exchange the Grant for a session.
 type emailGranter struct {
-	*JWTSigner
+	privateKey *rsa.PrivateKey // the private key to sign the code with
+	publicKey  *rsa.PublicKey  // the public key to verify the code with
 
 	jwt      string // the JWT passed in
 	clientID string // the clientID using the Grant
@@ -41,14 +43,14 @@ func (g *emailGranter) Validate(ctx context.Context) APIError {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		fp, err := g.getPublicKeyFingerprint()
+		fp, err := getPublicKeyFingerprint(g.publicKey)
 		if err != nil {
 			return nil, err
 		}
 		if fp != token.Header["kid"] {
 			return nil, errors.New("unknown signing key")
 		}
-		return g.JWTSigner.PublicKey, nil
+		return g.publicKey, nil
 	})
 	if err != nil {
 		yall.FromContext(ctx).WithError(err).Debug("Error validating token.")
@@ -103,13 +105,13 @@ type emailer interface {
 }
 
 type emailGrantCreator struct {
-	*JWTSigner
-
-	email     string
-	client    string
-	accounts  accounts.Storer
-	emailer   emailer
-	serviceID string
+	publicKey  *rsa.PublicKey
+	privateKey *rsa.PrivateKey
+	email      string
+	client     string
+	accounts   accounts.Storer
+	emailer    emailer
+	serviceID  string
 }
 
 type codeClaims struct {
@@ -167,14 +169,14 @@ func (g *emailGrantCreator) HandleOOBGrant(ctx context.Context, grant grants.Gra
 		SourceID:   grant.SourceID,
 		CreateIP:   grant.CreateIP,
 	})
-	fp, err := g.getPublicKeyFingerprint()
+	fp, err := getPublicKeyFingerprint(g.publicKey)
 	if err != nil {
 		log.WithError(err).Debug("error getting public key fingerprint")
 		return err
 	}
 	codeData.Header["kid"] = fp
 	log = log.WithField("jwt_kid", fp)
-	code, err := codeData.SignedString(g.JWTSigner.PrivateKey)
+	code, err := codeData.SignedString(g.privateKey)
 	if err != nil {
 		log.WithError(err).Debug("Error generating signed JWT string")
 		return err

@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,7 +47,8 @@ type Service struct {
 	Scopes           scopes.Dependencies
 	Sessions         sessions.Dependencies
 	Log              *yall.Logger
-	CodeJWTSigner    *JWTSigner
+	CodePublicKey    *rsa.PublicKey
+	CodePrivateKey   *rsa.PrivateKey
 	ServiceID        string
 	Emailer          emailer
 }
@@ -356,9 +358,10 @@ func (s Service) getGranter(values url.Values, clientID string) granter {
 		}
 	case "email":
 		return &emailGranter{
-			JWTSigner: s.CodeJWTSigner,
-			jwt:       values.Get("code"),
-			clientID:  clientID,
+			jwt:        values.Get("code"),
+			clientID:   clientID,
+			publicKey:  s.CodePublicKey,
+			privateKey: s.CodePrivateKey,
 		}
 	}
 	return nil
@@ -368,7 +371,8 @@ func (s Service) getGrantCreator(values url.Values, clientID string) grantCreato
 	switch values.Get("response_type") {
 	case "email":
 		return &emailGrantCreator{
-			JWTSigner: s.CodeJWTSigner,
+			publicKey:  s.CodePublicKey,
+			privateKey: s.CodePrivateKey,
 
 			email:     values.Get("email"),
 			client:    clientID,
