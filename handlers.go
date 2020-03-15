@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -19,6 +20,13 @@ import (
 	"lockbox.dev/scopes"
 	"lockbox.dev/sessions"
 	"lockbox.dev/tokens"
+)
+
+type responseMethod int
+
+const (
+	rmRedirect responseMethod = iota
+	rmOOB
 )
 
 var (
@@ -74,6 +82,12 @@ type granter interface {
 	CreatesGrantsInline() bool
 }
 
+type grantCreator interface {
+	FillGrant(ctx context.Context, scopes []string) (grants.Grant, APIError)
+	ResponseMethod() responseMethod
+	HandleOOBGrant(ctx context.Context, grant grants.Grant) error
+}
+
 // populate a url.Values with an APIError, so we can use it
 // to generate a query string with the error included.
 func errAsQueryParams(apiErr APIError) url.Values {
@@ -90,6 +104,14 @@ func tokenAsQueryParams(token Token) url.Values {
 		"token_type":   []string{token.TokenType},
 		"expires_in":   []string{strconv.Itoa(token.ExpiresIn)},
 		"scope":        []string{token.Scope},
+	}
+}
+
+// populate a url.Values with the values from a Grant, so we
+// can use it to generate a query string with the grant included.
+func grantAsQueryParams(grant grants.Grant) url.Values {
+	return url.Values{
+		"code": []string{grant.ID},
 	}
 }
 
@@ -158,6 +180,32 @@ func (s Service) returnToken(redirect bool, w http.ResponseWriter, r *http.Reque
 	err := enc.Encode(token)
 	if err != nil {
 		yall.FromContext(r.Context()).WithError(err).Error("Error writing response")
+	}
+}
+
+// return a grant, either as JSON output or as a redirect.
+func (s Service) returnGrant(rm responseMethod, w http.ResponseWriter, r *http.Request, grant grants.Grant, redirBase string) {
+	switch rm {
+	case rmRedirect:
+		u, err := url.Parse(redirBase)
+		if err != nil {
+			yall.FromContext(r.Context()).WithError(err).WithField("url", redirBase).Error("Error parsing redirect URL")
+			s.returnError(false, w, r, invalidRequestError, redirBase)
+			return
+		}
+		// add our new query params to any the URL may have had
+		q := mergeQueryParams(u.Query(), grantAsQueryParams(grant))
+		// build the query back up as part of the URL
+		u.RawQuery = q.Encode()
+		http.Redirect(w, r, u.String(), http.StatusFound)
+		return
+	case rmOOB:
+		w.WriteHeader(http.StatusNoContent)
+		return
+	default:
+		err := fmt.Errorf("unknown responseMethod %v", rm)
+		yall.FromContext(r.Context()).WithError(err).Error("unknown responseMethod")
+		s.returnError(false, w, r, serverError, redirBase)
 	}
 }
 
@@ -297,11 +345,21 @@ func (s Service) getGranter(values url.Values, clientID string) granter {
 			accounts:     s.Accounts.Storer,
 		}
 	case "email":
-		// TODO: implement an email based auth flow
-		/*return &emailGranter{
-			client:   clientID,
-			accounts: s.Accounts.Storer,
-		}*/
+		return &emailGranter{
+			jwt:      values.Get("code"),
+			clientID: clientID,
+		}
+	}
+	return nil
+}
+
+func (s Service) getGrantCreator(values url.Values, clientID string) grantCreator {
+	switch values.Get("response_type") {
+	case "email":
+		return &emailGrantCreator{
+			email:  values.Get("email"),
+			client: clientID,
+		}
 	}
 	return nil
 }
@@ -381,7 +439,7 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 	// that don't create their own
 	if g.CreatesGrantsInline() {
 		// build our grant
-		grant.CreateIP = grant.UseIP
+		grant.CreateIP = getIP(r)
 
 		// store the grant
 		grant, apiErr = s.createGrant(yall.InContext(r.Context(), log), grant)
@@ -438,4 +496,86 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 
 	// return our tokens
 	s.returnToken(g.Redirects(), w, r, token, redirectURI)
+}
+
+// handle the grant request endpoint
+// this endpoint is used when the user wants to to start the authorization
+// process, to generate a Grant that can be redeemed for a token.
+func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
+	// explicitly parse the form, so we can handle the error
+	log := yall.FromContext(r.Context())
+	err := r.ParseForm()
+	if err != nil {
+		log.WithError(err).Error("Error parsing form")
+		s.returnError(false, w, r, invalidRequestError, "")
+		return
+	}
+
+	// figure out which client we're dealing with
+	clientID, clientSecret, redirectURI := getClientCredentials(r)
+	log = log.WithField("oauth2_client_id", clientID).WithField("redirect_uri_given", redirectURI)
+
+	// make sure the client is who they say they are
+	clientErr := s.validateClientCredentials(yall.InContext(r.Context(), log), clientID, clientSecret, redirectURI)
+	if !clientErr.IsZero() {
+		log.WithField("api_error", clientErr).Debug("Error validating client")
+		s.returnError(false, w, r, invalidRequestError, "")
+		return
+	}
+
+	log.WithField("response_type", r.PostForm.Get("response_type"))
+
+	// figure out what type of grant the user is requesting
+	g := s.getGrantCreator(r.PostForm, clientID)
+	if g == nil {
+		// if g is nil, that means it's not a match for our supported types
+		log.Debug("Unsupported response type")
+		s.returnError(false, w, r, APIError{
+			Error: "unsupported_response_type",
+			Code:  http.StatusBadRequest,
+		}, "")
+		return
+	}
+
+	// figure out which redirect URI to use for our client
+	redirectURI, err = s.getClientRedirectURI(yall.InContext(r.Context(), log), clientID, redirectURI)
+	if err != nil {
+		log.WithError(err).Error("Error determining redirect URI.")
+		s.returnError(false, w, r, serverError, "")
+		return
+	}
+	log = log.WithField("redirect_uri", redirectURI)
+
+	// figure out what scopes we should be using
+	scopes := strings.Split(r.FormValue("scope"), " ")
+	log = log.WithField("scopes_given", scopes)
+	scopes, apiErr := s.checkScopes(yall.InContext(r.Context(), log), clientID, scopes)
+	if !apiErr.IsZero() {
+		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error checking scopes")
+		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)
+		return
+	}
+
+	log = log.WithField("scopes", scopes)
+
+	// fill out our grant fields
+	grant, apiErr := g.FillGrant(yall.InContext(r.Context(), log), scopes)
+	if apiErr.Error != "" {
+		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)
+		return
+	}
+	grant.CreateIP = getIP(r)
+
+	// store the grant
+	grant, apiErr = s.createGrant(yall.InContext(r.Context(), log), grant)
+	if !apiErr.IsZero() {
+		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error creating grant")
+		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)
+		return
+	}
+	log = log.WithField("grant", grant.ID)
+	log.Debug("created grant")
+
+	// return the grant
+	s.returnGrant(g.ResponseMethod(), w, r, grant, redirectURI)
 }

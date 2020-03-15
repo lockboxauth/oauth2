@@ -30,6 +30,9 @@ func (s Service) Server(prefix string) http.Handler {
 	router.Endpoint("/token").Methods("POST").
 		Handler(logEndpoint(http.HandlerFunc(
 			s.handleAccessTokenRequest)))
+	router.Endpoint("authorize").Methods("GET", "POST").
+		Handler(logEndpoint(http.HandlerFunc(
+			s.handleGrantRequest)))
 
 	return router
 }
