@@ -2,7 +2,6 @@ package oauth2
 
 import (
 	"context"
-	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -47,9 +46,6 @@ type Service struct {
 	Scopes           scopes.Dependencies
 	Sessions         sessions.Dependencies
 	Log              *yall.Logger
-	CodePublicKey    *rsa.PublicKey
-	CodePrivateKey   *rsa.PrivateKey
-	ServiceID        string
 	Emailer          emailer
 }
 
