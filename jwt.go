@@ -32,3 +32,12 @@ func (j JWTSigner) getPublicKeyFingerprint() (string, error) {
 	j.PubKeyFingerprint = &fingerprint
 	return *j.PubKeyFingerprint, nil
 }
+
+func NewJWTSigner(pub *rsa.PublicKey, priv *rsa.PrivateKey) *JWTSigner {
+	var mu sync.RWMutex
+	return &JWTSigner{
+		PrivateKey:          priv,
+		PublicKey:           pub,
+		PubKeyFingerprintMu: &mu,
+	}
+}
