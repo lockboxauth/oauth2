@@ -121,15 +121,19 @@ type codeClaims struct {
 }
 
 func (g *emailGrantCreator) FillGrant(ctx context.Context, scopes []string) (grants.Grant, APIError) {
+	log := yall.FromContext(ctx)
 	account, err := g.accounts.Get(ctx, g.email)
 	if err != nil {
 		if err == accounts.ErrAccountNotFound {
+			log.WithField("email", g.email).Debug("account not found")
 			return grants.Grant{}, invalidRequestError
 		}
+		log.WithError(err).Error("error retrieving account")
 		return grants.Grant{}, serverError
 	}
 	u, err := uuid.GenerateUUID()
 	if err != nil {
+		log.WithError(err).Error("error generating UUID")
 		return grants.Grant{}, serverError
 	}
 	return grants.Grant{
