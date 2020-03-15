@@ -16,12 +16,12 @@ require (
 	google.golang.org/appengine v1.6.5 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	impractical.co/googleid v0.1.0
-	lockbox.dev/accounts v0.1.0
-	lockbox.dev/clients v0.2.2-0.20200315041548-189294691432
-	lockbox.dev/grants v0.2.0
-	lockbox.dev/scopes v0.1.0
-	lockbox.dev/sessions v0.1.0
-	lockbox.dev/tokens v0.2.0
+	lockbox.dev/accounts v0.2.0
+	lockbox.dev/clients v0.3.0
+	lockbox.dev/grants v0.3.0
+	lockbox.dev/scopes v0.1.1-0.20200315025000-782728c67503
+	lockbox.dev/sessions v0.1.1-0.20200315104056-a82faf5917e8
+	lockbox.dev/tokens v0.2.1-0.20200315103938-6db099e6f007
 	yall.in v0.0.1
 )
 
