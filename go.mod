@@ -16,7 +16,7 @@ require (
 	impractical.co/googleid v0.1.0
 	lockbox.dev/accounts v0.2.0
 	lockbox.dev/clients v0.3.0
-	lockbox.dev/grants v0.3.0
+	lockbox.dev/grants v0.4.0
 	lockbox.dev/scopes v0.2.0
 	lockbox.dev/sessions v0.2.0
 	lockbox.dev/tokens v0.3.0
