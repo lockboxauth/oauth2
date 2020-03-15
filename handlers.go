@@ -232,24 +232,31 @@ func getClientCredentials(r *http.Request) (id, secret, redirect string) {
 
 // check that the client credentials are valid
 func (s Service) validateClientCredentials(ctx context.Context, clientID, clientSecret, redirectURI string) APIError {
+	log := yall.FromContext(ctx)
 	if clientID == "" {
+		log.Debug("no client ID specified")
 		return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
 	}
 	if clientSecret != "" && redirectURI != "" {
+		log.Debug("client secret and redirect URI both set")
 		return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
 	}
 	client, err := s.Clients.Get(ctx, clientID)
 	if err != nil {
 		if err == clients.ErrClientNotFound {
+			log.Debug("client not found")
 			return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
 		}
+		log.WithError(err).Error("error retrieving client")
 		return serverError
 	}
 	err = client.CheckSecret(clientSecret)
 	if err != nil {
 		if err == clients.ErrIncorrectSecret {
+			log.Debug("incorrect client secret")
 			return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
 		}
+		log.WithError(err).Error("error checking client secret")
 		return serverError
 	}
 	return APIError{}
@@ -532,7 +539,7 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.WithField("response_type", r.PostForm.Get("response_type"))
+	log = log.WithField("response_type", r.PostForm.Get("response_type"))
 
 	// figure out what type of grant the user is requesting
 	g := s.getGrantCreator(r.PostForm, clientID)
