@@ -358,10 +358,9 @@ func (s Service) getGranter(values url.Values, clientID string) granter {
 		}
 	case "email":
 		return &emailGranter{
-			jwt:        values.Get("code"),
-			clientID:   clientID,
-			publicKey:  s.CodePublicKey,
-			privateKey: s.CodePrivateKey,
+			id:       values.Get("code"),
+			clientID: clientID,
+			grants:   s.Grants.Storer,
 		}
 	}
 	return nil
@@ -371,14 +370,10 @@ func (s Service) getGrantCreator(values url.Values, clientID string) grantCreato
 	switch values.Get("response_type") {
 	case "email":
 		return &emailGrantCreator{
-			publicKey:  s.CodePublicKey,
-			privateKey: s.CodePrivateKey,
-
-			email:     values.Get("email"),
-			client:    clientID,
-			accounts:  s.Accounts.Storer,
-			emailer:   s.Emailer,
-			serviceID: s.ServiceID,
+			email:    values.Get("email"),
+			client:   clientID,
+			accounts: s.Accounts.Storer,
+			emailer:  s.Emailer,
 		}
 	}
 	return nil

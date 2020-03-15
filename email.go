@@ -2,15 +2,12 @@ package oauth2
 
 import (
 	"context"
-	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/hashicorp/go-uuid"
-	"github.com/pkg/errors"
 	yall "yall.in"
 
 	"lockbox.dev/accounts"
@@ -21,62 +18,47 @@ const (
 	emailLength = 1 * time.Hour
 )
 
+type emailer interface {
+	SendMail(ctx context.Context, email, code string) error
+}
+
 // emailGranter fills the granter interface for handling a Grant passed
-// as a JWT. The expectation is that the user will request a Grant be
+// by its ID. The expectation is that the user will request a Grant be
 // emailed to them as a link, they'll click the link, and end that link
 // will exchange the Grant for a session.
 type emailGranter struct {
-	privateKey *rsa.PrivateKey // the private key to sign the code with
-	publicKey  *rsa.PublicKey  // the public key to verify the code with
-
-	jwt      string // the JWT passed in
+	id       string // the ID of the grant being used
 	clientID string // the clientID using the Grant
+	grants   grants.Storer
 
 	// populated in Validate
 	grant grants.Grant // the Grant being traded for a session
 }
 
-// Validate parses the passed JWT and stores it for later reference,
-// ensuring that it is a valid and authorized JWT.
+// Validate retrieves the Grant and stores it for later reference,
+// ensuring that it is valid and authorized.
 func (g *emailGranter) Validate(ctx context.Context) APIError {
-	tok, err := jwt.ParseWithClaims(g.jwt, &codeClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		fp, err := getPublicKeyFingerprint(g.publicKey)
-		if err != nil {
-			return nil, err
-		}
-		if fp != token.Header["kid"] {
-			return nil, errors.New("unknown signing key")
-		}
-		return g.publicKey, nil
-	})
+	log := yall.FromContext(ctx)
+	log = log.WithField("passed_id", g.id)
+	id, err := base64.URLEncoding.DecodeString(g.id)
 	if err != nil {
-		yall.FromContext(ctx).WithError(err).Debug("Error validating token.")
+		log.WithError(err).Debug("error parsing grant")
 		return invalidRequestError
 	}
-	claims, ok := tok.Claims.(*codeClaims)
-	if !ok {
+	grant, err := g.grants.GetGrant(ctx, string(id))
+	if err != nil {
+		if err == grants.ErrGrantNotFound {
+			log.Debug("grant not found")
+			return invalidRequestError
+		}
+		log.WithError(err).Error("error retrieving grant")
 		return serverError
 	}
-	if claims.Audience != g.clientID {
-		return invalidRequestError
-	}
-	g.grant = grants.Grant{
-		ID:         claims.Id,
-		SourceType: claims.SourceType,
-		SourceID:   claims.SourceID,
-		CreatedAt:  time.Unix(claims.IssuedAt, 0),
-		Scopes:     claims.Scopes,
-		ProfileID:  claims.Subject,
-		ClientID:   claims.Audience,
-		CreateIP:   claims.CreateIP,
-	}
+	g.grant = grant
 	return APIError{}
 }
 
-// Grant returns the parsed JWT as a grants.Grant.
+// Grant returns the grant we retrieved in Validate.
 func (g *emailGranter) Grant(ctx context.Context, scopes []string) grants.Grant {
 	return g.grant
 }
@@ -100,26 +82,11 @@ func (g *emailGranter) CreatesGrantsInline() bool {
 	return false
 }
 
-type emailer interface {
-	SendMail(ctx context.Context, email, code string) error
-}
-
 type emailGrantCreator struct {
-	publicKey  *rsa.PublicKey
-	privateKey *rsa.PrivateKey
-	email      string
-	client     string
-	accounts   accounts.Storer
-	emailer    emailer
-	serviceID  string
-}
-
-type codeClaims struct {
-	jwt.StandardClaims
-	Scopes     []string `json:"scopes,omitempty"`
-	SourceType string   `json:"source_type,omitempty"`
-	SourceID   string   `json:"source_id,omitempty"`
-	CreateIP   string   `json:"create_ip,omitempty"`
+	email    string
+	client   string
+	accounts accounts.Storer
+	emailer  emailer
 }
 
 func (g *emailGrantCreator) FillGrant(ctx context.Context, scopes []string) (grants.Grant, APIError) {
@@ -154,34 +121,7 @@ func (g *emailGrantCreator) ResponseMethod() responseMethod {
 
 func (g *emailGrantCreator) HandleOOBGrant(ctx context.Context, grant grants.Grant) error {
 	log := yall.FromContext(ctx)
-	codeData := jwt.NewWithClaims(jwt.SigningMethodRS256, codeClaims{
-		StandardClaims: jwt.StandardClaims{
-			Audience:  grant.ClientID,
-			ExpiresAt: grant.CreatedAt.UTC().Add(emailLength).Unix(),
-			Id:        grant.ID,
-			IssuedAt:  grant.CreatedAt.UTC().Unix(),
-			Issuer:    g.serviceID,
-			NotBefore: grant.CreatedAt.UTC().Add(-1 * time.Hour).Unix(),
-			Subject:   grant.ProfileID,
-		},
-		Scopes:     grant.Scopes,
-		SourceType: grant.SourceType,
-		SourceID:   grant.SourceID,
-		CreateIP:   grant.CreateIP,
-	})
-	fp, err := getPublicKeyFingerprint(g.publicKey)
-	if err != nil {
-		log.WithError(err).Debug("error getting public key fingerprint")
-		return err
-	}
-	codeData.Header["kid"] = fp
-	log = log.WithField("jwt_kid", fp)
-	code, err := codeData.SignedString(g.privateKey)
-	if err != nil {
-		log.WithError(err).Debug("Error generating signed JWT string")
-		return err
-	}
-	err = g.emailer.SendMail(ctx, g.email, code)
+	err := g.emailer.SendMail(ctx, g.email, base64.URLEncoding.EncodeToString([]byte(grant.ID)))
 	if err != nil {
 		log.WithError(err).Debug("Error sending mail")
 		return err
