@@ -25,7 +25,7 @@ const (
 // emailed to them as a link, they'll click the link, and end that link
 // will exchange the Grant for a session.
 type emailGranter struct {
-	jwtSigner
+	*JWTSigner
 
 	jwt      string // the JWT passed in
 	clientID string // the clientID using the Grant
@@ -48,7 +48,7 @@ func (g *emailGranter) Validate(ctx context.Context) APIError {
 		if fp != token.Header["kid"] {
 			return nil, errors.New("unknown signing key")
 		}
-		return g.jwtSigner.publicKey, nil
+		return g.JWTSigner.PublicKey, nil
 	})
 	if err != nil {
 		yall.FromContext(ctx).WithError(err).Debug("Error validating token.")
@@ -103,7 +103,7 @@ type emailer interface {
 }
 
 type emailGrantCreator struct {
-	jwtSigner
+	*JWTSigner
 
 	email     string
 	client    string
@@ -169,7 +169,7 @@ func (g *emailGrantCreator) HandleOOBGrant(ctx context.Context, grant grants.Gra
 	}
 	codeData.Header["kid"] = fp
 	log = log.WithField("jwt_kid", fp)
-	code, err := codeData.SignedString(g.jwtSigner.privateKey)
+	code, err := codeData.SignedString(g.JWTSigner.PrivateKey)
 	if err != nil {
 		return err
 	}

@@ -46,6 +46,9 @@ type Service struct {
 	Scopes           scopes.Dependencies
 	Sessions         sessions.Dependencies
 	Log              *yall.Logger
+	CodeJWTSigner    *JWTSigner
+	ServiceID        string
+	Emailer          emailer
 }
 
 type APIError struct {
@@ -346,8 +349,9 @@ func (s Service) getGranter(values url.Values, clientID string) granter {
 		}
 	case "email":
 		return &emailGranter{
-			jwt:      values.Get("code"),
-			clientID: clientID,
+			JWTSigner: s.CodeJWTSigner,
+			jwt:       values.Get("code"),
+			clientID:  clientID,
 		}
 	}
 	return nil
@@ -357,8 +361,13 @@ func (s Service) getGrantCreator(values url.Values, clientID string) grantCreato
 	switch values.Get("response_type") {
 	case "email":
 		return &emailGrantCreator{
-			email:  values.Get("email"),
-			client: clientID,
+			JWTSigner: s.CodeJWTSigner,
+
+			email:     values.Get("email"),
+			client:    clientID,
+			accounts:  s.Accounts.Storer,
+			emailer:   s.Emailer,
+			serviceID: s.ServiceID,
 		}
 	}
 	return nil
