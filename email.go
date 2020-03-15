@@ -169,16 +169,19 @@ func (g *emailGrantCreator) HandleOOBGrant(ctx context.Context, grant grants.Gra
 	})
 	fp, err := g.getPublicKeyFingerprint()
 	if err != nil {
+		log.WithError(err).Debug("error getting public key fingerprint")
 		return err
 	}
 	codeData.Header["kid"] = fp
 	log = log.WithField("jwt_kid", fp)
 	code, err := codeData.SignedString(g.JWTSigner.PrivateKey)
 	if err != nil {
+		log.WithError(err).Debug("Error generating signed JWT string")
 		return err
 	}
 	err = g.emailer.SendMail(ctx, g.email, code)
 	if err != nil {
+		log.WithError(err).Debug("Error sending mail")
 		return err
 	}
 	return nil

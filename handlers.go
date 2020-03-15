@@ -592,6 +592,15 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 	log = log.WithField("grant", grant.ID)
 	log.Debug("created grant")
 
+	if g.ResponseMethod() == rmOOB {
+		err = g.HandleOOBGrant(yall.InContext(r.Context(), log), grant)
+		if err != nil {
+			log.WithError(err).Error("Error handling OOB grant")
+			s.returnError(g.ResponseMethod() == rmRedirect, w, r, serverError, redirectURI)
+			return
+		}
+	}
+
 	// return the grant
 	s.returnGrant(g.ResponseMethod(), w, r, grant, redirectURI)
 }
