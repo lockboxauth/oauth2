@@ -17,7 +17,7 @@ require (
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	impractical.co/googleid v0.1.0
 	lockbox.dev/accounts v0.1.0
-	lockbox.dev/clients v0.1.0
+	lockbox.dev/clients v0.2.2-0.20200315041548-189294691432
 	lockbox.dev/grants v0.2.0
 	lockbox.dev/scopes v0.1.0
 	lockbox.dev/sessions v0.1.0
