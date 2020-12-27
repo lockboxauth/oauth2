@@ -355,7 +355,7 @@ func (s Service) getGranter(values url.Values, clientID string) granter {
 		}
 	case "email":
 		return &emailGranter{
-			id:       values.Get("code"),
+			code:     values.Get("code"),
 			clientID: clientID,
 			grants:   s.Grants.Storer,
 		}
