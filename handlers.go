@@ -112,7 +112,8 @@ func tokenAsQueryParams(token Token) url.Values {
 // can use it to generate a query string with the grant included.
 func grantAsQueryParams(grant grants.Grant) url.Values {
 	return url.Values{
-		"code": []string{grant.ID},
+		"code":      []string{grant.SourceID},
+		"code_type": []string{grant.SourceType},
 	}
 }
 
