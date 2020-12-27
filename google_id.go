@@ -59,7 +59,8 @@ func (g *googleIDGranter) Validate(ctx context.Context) APIError {
 func (g *googleIDGranter) Grant(ctx context.Context, scopes []string) grants.Grant {
 	return grants.Grant{
 		SourceType: "google_id",
-		SourceID:   g.token.Iss + ":" + g.token.Sub + ":" + strconv.FormatInt(g.token.Iat, 10),
+		SourceID:   g.token.Iss + ";" + g.token.Sub + ";" + strconv.FormatInt(g.token.Iat, 10),
+		AccountID:  strings.ToLower(g.token.Email),
 		ProfileID:  g.userID,
 		ClientID:   g.client,
 		Scopes:     scopes,
