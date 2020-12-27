@@ -2,9 +2,7 @@ package oauth2
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"time"
 
 	uuid "github.com/hashicorp/go-uuid"
@@ -27,7 +25,7 @@ type emailer interface {
 // emailed to them as a link, they'll click the link, and end that link
 // will exchange the Grant for a session.
 type emailGranter struct {
-	id       string // the ID of the grant being used
+	code     string // the code presented as proof of grant
 	clientID string // the clientID using the Grant
 	grants   grants.Storer
 
@@ -39,13 +37,8 @@ type emailGranter struct {
 // ensuring that it is valid and authorized.
 func (g *emailGranter) Validate(ctx context.Context) APIError {
 	log := yall.FromContext(ctx)
-	log = log.WithField("passed_id", g.id)
-	id, err := base64.URLEncoding.DecodeString(g.id)
-	if err != nil {
-		log.WithError(err).Debug("error parsing grant")
-		return invalidRequestError
-	}
-	grant, err := g.grants.GetGrant(ctx, string(id))
+	log = log.WithField("passed_code", g.code)
+	grant, err := g.grants.GetGrantBySource(ctx, "email", g.code)
 	if err != nil {
 		if err == grants.ErrGrantNotFound {
 			log.Debug("grant not found")
@@ -100,14 +93,14 @@ func (g *emailGrantCreator) FillGrant(ctx context.Context, scopes []string) (gra
 		log.WithError(err).Error("error retrieving account")
 		return grants.Grant{}, serverError
 	}
-	u, err := uuid.GenerateUUID()
+	codeBytes, err := uuid.GenerateRandomBytes(32)
 	if err != nil {
-		log.WithError(err).Error("error generating UUID")
+		log.WithError(err).Error("error generating random bytes")
 		return grants.Grant{}, serverError
 	}
 	return grants.Grant{
 		SourceType: "email",
-		SourceID:   hex.EncodeToString(sha256.New().Sum([]byte(g.email + "," + u))),
+		SourceID:   base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(codeBytes),
 		Scopes:     scopes,
 		AccountID:  account.ID,
 		ProfileID:  account.ProfileID,
@@ -121,7 +114,7 @@ func (g *emailGrantCreator) ResponseMethod() responseMethod {
 
 func (g *emailGrantCreator) HandleOOBGrant(ctx context.Context, grant grants.Grant) error {
 	log := yall.FromContext(ctx)
-	err := g.emailer.SendMail(ctx, g.email, base64.URLEncoding.EncodeToString([]byte(grant.ID)))
+	err := g.emailer.SendMail(ctx, g.email, grant.SourceID)
 	if err != nil {
 		log.WithError(err).Debug("Error sending mail")
 		return err
