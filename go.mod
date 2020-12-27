@@ -8,7 +8,6 @@ require (
 	github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4 // indirect
 	github.com/hashicorp/go-uuid v1.0.2
 	github.com/mailgun/mailgun-go v2.0.0+incompatible
-	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	impractical.co/googleid v0.1.0
 	lockbox.dev/accounts v0.2.1-0.20201227101750-27c7912e2ad2
 	lockbox.dev/clients v0.3.1-0.20201227102114-4497b2228246

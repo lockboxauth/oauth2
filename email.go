@@ -3,17 +3,12 @@ package oauth2
 import (
 	"context"
 	"encoding/base64"
-	"time"
 
 	uuid "github.com/hashicorp/go-uuid"
 	yall "yall.in"
 
 	"lockbox.dev/accounts"
 	"lockbox.dev/grants"
-)
-
-const (
-	emailLength = 1 * time.Hour
 )
 
 type emailer interface {
