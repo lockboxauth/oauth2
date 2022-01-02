@@ -7,7 +7,7 @@ require (
 	github.com/mailgun/mailgun-go/v4 v4.6.0
 	impractical.co/googleid v0.2.1
 	lockbox.dev/accounts v0.4.0
-	lockbox.dev/clients v0.5.0
+	lockbox.dev/clients v0.6.0
 	lockbox.dev/grants v0.6.0
 	lockbox.dev/scopes v0.3.0
 	lockbox.dev/sessions v0.3.0
