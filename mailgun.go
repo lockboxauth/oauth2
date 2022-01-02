@@ -6,7 +6,7 @@ import (
 	"strings"
 	texttmpl "text/template"
 
-	"github.com/mailgun/mailgun-go"
+	"github.com/mailgun/mailgun-go/v4"
 	yall "yall.in"
 )
 

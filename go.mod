@@ -4,7 +4,7 @@ require (
 	darlinggo.co/trout/v2 v2.0.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/hashicorp/go-uuid v1.0.2
-	github.com/mailgun/mailgun-go v2.0.0+incompatible
+	github.com/mailgun/mailgun-go/v4 v4.6.0
 	impractical.co/googleid v0.1.0
 	lockbox.dev/accounts v0.2.1-0.20201227101750-27c7912e2ad2
 	lockbox.dev/clients v0.3.1-0.20201227102114-4497b2228246
@@ -17,15 +17,15 @@ require (
 
 require (
 	github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c // indirect
-	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4 // indirect
-	github.com/gobuffalo/envy v1.7.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
-	github.com/joho/godotenv v1.3.0 // indirect
+	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/json-iterator/go v1.1.10 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
-	github.com/rogpeppe/go-internal v1.4.0 // indirect
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
 	golang.org/x/net v0.0.0-20201026091529-146b70c837a4 // indirect
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43 // indirect
