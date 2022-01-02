@@ -45,7 +45,7 @@ func (m Mailgun) SendMail(ctx context.Context, email, code string) error {
 	)
 	msg.SetTracking(false)
 	msg.SetHtml(htmlBody.String())
-	_, id, err := m.Client.Send(msg)
+	_, id, err := m.Client.Send(ctx, msg)
 	if err != nil {
 		return err
 	}
