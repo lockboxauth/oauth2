@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 	yall "yall.in"
 
 	"lockbox.dev/accounts"

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"impractical.co/googleid"
 	yall "yall.in"
 
