@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -128,6 +129,30 @@ func mergeQueryParams(paramSets ...url.Values) url.Values {
 		}
 	}
 	return q
+}
+
+// check that we're using a supported content type
+func isContentType(ctx context.Context, r *http.Request, contentTypes ...string) bool {
+	contentType := r.Header.Get("Content-type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+		yall.FromContext(ctx).Debug("no content-type header set, assuming application/octet-stream")
+	}
+
+	for _, v := range strings.Split(contentType, ",") {
+		t, _, err := mime.ParseMediaType(v)
+		if err != nil {
+			yall.FromContext(ctx).WithError(err).WithField("content_type", v).WithField("content_type_header", contentType).Debug("error parsing media type")
+			break
+		}
+		for _, mimetype := range contentTypes {
+			if t == mimetype {
+				yall.FromContext(ctx).WithField("content_type", mimetype).Debug("suitable content-type header found")
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // return an error, either as JSON output or as a redirect.
@@ -380,8 +405,9 @@ func (s Service) getGrantCreator(values url.Values, clientID string) grantCreato
 // this endpoint is used when the user is ready to trade an existing grant for an
 // access token.
 func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request) {
-	// explicitly parse the form, so we can handle the error
 	log := yall.FromContext(r.Context())
+
+	// explicitly parse the form, so we can handle the error
 	err := r.ParseForm()
 	if err != nil {
 		log.WithError(err).Error("Error parsing form")
@@ -514,8 +540,20 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 // this endpoint is used when the user wants to to start the authorization
 // process, to generate a Grant that can be redeemed for a token.
 func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
-	// explicitly parse the form, so we can handle the error
 	log := yall.FromContext(r.Context())
+
+	// check our content-type. r.ParseForm() only works if the header is
+	// set to application/x-www-form-urlencoded
+	if !isContentType(r.Context(), r, "application/x-www-form-urlencoded") {
+		log.WithField("content_type", r.Header.Get("Content-Type")).Debug("invalid content type")
+		s.returnError(false, w, r, APIError{
+			Error: "unsupported_content_type",
+			Code:  http.StatusUnsupportedMediaType,
+		}, "")
+		return
+	}
+
+	// explicitly parse the form, so we can handle the error
 	err := r.ParseForm()
 	if err != nil {
 		log.WithError(err).Error("Error parsing form")
@@ -595,10 +633,8 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 			s.returnError(g.ResponseMethod() == rmRedirect, w, r, serverError, redirectURI)
 			return
 		}
-		// TODO: do we want to return here, so we don't redirect with
-		// the grant? The user should only be able to retrieve their
-		// grant from the out of band method the granter provides, not
-		// from the redirect.
+		// fall through, s.returnGrant will write the correct status
+		// code for us and handle this situation correctly.
 	}
 
 	// return the grant

@@ -141,11 +141,114 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			expectedEmail:  "test@lockbox.dev",
 			expectedCode:   true,
 		},
+
+		// test a request that doesn't specify a Content-Type header,
+		// which we should explicitly reject because requests without
+		// Content-Type headers means the net/http library won't parse
+		// the body and that leads to all sorts of weirdness, so we
+		// should just explicitly reject them
+		"no-content-type": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			body: "response_type=email&email=test@lockbox.dev",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+			},
+			expectedStatus: http.StatusUnsupportedMediaType,
+			expectedBody:   `{"error": "unsupported_content_type"}`,
+		},
+
+		// test a request that specifies an unsupported Content-Type
+		// header which we should explicitly reject because requests
+		// with Content-Type headers set to anything but
+		// application/x-www-form-urlencoded means the net/http library
+		// won't parse the body and that leads to all sorts of
+		// weirdness, so we should just explicitly reject them
+		"unsupported-content-type": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			body: `{"response_type": "email", "email": "test@lockbox.dev"}`,
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": []string{"application/json"},
+			},
+			expectedStatus: http.StatusUnsupportedMediaType,
+			expectedBody:   `{"error": "unsupported_content_type"}`,
+		},
+
 		/*
-			// test the case where we don't send a Content-Type
-			"no-content-type": {},
-			// test the case where we send an unsupported Content-Type
-			"unsupported-content-type": {},
 			// test the case where user doesn't exist
 			"unregistered-user": {},
 			// test the case where no email is specified
