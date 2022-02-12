@@ -597,7 +597,12 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 	log = log.WithField("redirect_uri", redirectURI)
 
 	// figure out what scopes we should be using
-	scopes := strings.Split(r.FormValue("scope"), " ")
+	var scopes []string
+	for _, scope := range strings.Split(r.FormValue("scope"), " ") {
+		if strings.TrimSpace(scope) != "" {
+			scopes = append(scopes, strings.TrimSpace(scope))
+		}
+	}
 	log = log.WithField("scopes_given", scopes)
 	scopes, apiErr := s.checkScopes(yall.InContext(r.Context(), log), clientID, scopes)
 	if !apiErr.IsZero() {

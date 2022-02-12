@@ -84,6 +84,22 @@ func TestCreateGrantFromEmail(t *testing.T) {
 
 		// set to true if a code is expected to be set, false if not
 		expectedCode bool
+
+		// the scopes that are expected on the created grant, if
+		// expectedCode is true
+		expectedScopes []string
+
+		// the profileID expected for the created grant, if
+		// expectedCode is true
+		expectedProfileID string
+
+		// the accountID expected for the created grant, if
+		// expectedCode is true
+		expectedAccountID string
+
+		// the client ID expected for the created grant, if
+		// expectedCode is true
+		expectedClientID string
 	}
 
 	tests := map[string]testCase{
@@ -125,6 +141,11 @@ func TestCreateGrantFromEmail(t *testing.T) {
 					ClientPolicy: scopes.PolicyAllowAll,
 					IsDefault:    true,
 				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
 			},
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
@@ -136,6 +157,13 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			expectedStatus: 204,
 			expectedEmail:  "test@lockbox.dev",
 			expectedCode:   true,
+			expectedScopes: []string{
+				"https://scopes.lockbox.dev/testing/default",
+				"https://scopes.lockbox.dev/testing/default2",
+			},
+			expectedAccountID: "test@lockbox.dev",
+			expectedProfileID: "testing123",
+			expectedClientID:  "testclient",
 		},
 
 		// test a request that doesn't specify a Content-Type header,
@@ -490,8 +518,74 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			if emailer.LastEmail != tc.expectedEmail {
 				t.Errorf("Expected email to be sent to %q, was sent to %q", tc.expectedEmail, emailer.LastEmail)
 			}
-			if tc.expectedCode && !codeRE.MatchString(emailer.LastCode) {
-				t.Errorf("Expected an email code, but %q doesn't match our expected code format", emailer.LastCode)
+			if !tc.expectedCode {
+				return
+			}
+			if !codeRE.MatchString(emailer.LastCode) {
+				t.Fatalf("Expected an email code, but %q doesn't match our expected code format", emailer.LastCode)
+			}
+
+			grant, err := s.Grants.Storer.GetGrantBySource(context.Background(), "email", emailer.LastCode)
+			if err != nil {
+				t.Fatalf("Error getting grant %q from storer: %s", emailer.LastCode, err)
+			}
+
+			if age := time.Now().Sub(grant.CreatedAt); age > time.Second {
+				t.Errorf("Expected grant to be created within the last second, says it was created %s ago", age)
+			}
+
+			if age := grant.CreatedAt.Sub(time.Now()); age > 0 {
+				t.Errorf("Grant somehow created %s from now", age)
+			}
+
+			if !grant.UsedAt.IsZero() {
+				t.Errorf("Grant expected to be unused, says it was used at %s", grant.UsedAt)
+			}
+
+			if len(grant.Scopes) != len(tc.expectedScopes) {
+				t.Errorf("Expected grant to have %d scopes, has %d", len(tc.expectedScopes), len(grant.Scopes))
+			}
+
+			for _, expected := range tc.expectedScopes {
+				var found bool
+				for _, got := range grant.Scopes {
+					if expected == got {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected grant to have scope %q, is missing", expected)
+				}
+			}
+
+			for _, got := range grant.Scopes {
+				var found bool
+				for _, expected := range tc.expectedScopes {
+					if expected == got {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Unexpected scope %q found in grant", got)
+				}
+			}
+
+			if grant.AccountID != tc.expectedAccountID {
+				t.Errorf("Expected grant to have account ID %q, has %q", tc.expectedAccountID, grant.AccountID)
+			}
+
+			if grant.ProfileID != tc.expectedProfileID {
+				t.Errorf("Expected grant to have profile ID %q, has %q", tc.expectedProfileID, grant.ProfileID)
+			}
+
+			if grant.ClientID != tc.expectedClientID {
+				t.Errorf("Expected grant to have client ID %q, has %q", tc.expectedClientID, grant.ClientID)
+			}
+
+			if grant.Used {
+				t.Errorf("Expected grant to be unused, says it's used.")
 			}
 		})
 	}
