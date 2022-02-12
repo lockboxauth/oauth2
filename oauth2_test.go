@@ -48,10 +48,6 @@ func secretScheme(t *testing.T, secret string) string {
 	return *change.SecretScheme
 }
 
-// TODO: stand up a server and test requests and responses against it
-// these should more or less just match the OAuth2 spec
-// but we should also exercise the email flow, as well
-
 func TestCreateGrantFromEmail(t *testing.T) {
 	t.Parallel()
 
@@ -248,11 +244,96 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			expectedBody:   `{"error": "unsupported_content_type"}`,
 		},
 
+		// test a request to log in as a user that doesn't exist
+		"unregistered-user": {
+			existingAccounts: []accounts.Account{},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			body: "response_type=email&email=test@lockbox.dev",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": []string{"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "invalid_request"}`,
+		},
+
+		// test a request that's missing the email parameter
+		"no-email": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			body: "response_type=email",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": []string{"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "invalid_request"}`,
+		},
+
 		/*
-			// test the case where user doesn't exist
-			"unregistered-user": {},
-			// test the case where no email is specified
-			"no-email": {},
 			// test no client credentials
 			"no-client-credentials": {},
 			// test getting the client credentials from basic auth
@@ -274,7 +355,6 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			// test that scopes the user isn't authorized to use are
 			// stripped
 			"strip-unauthorized-user-scopes": {},
-			// TODO: do we need redirect URI tests here?
 		*/
 	}
 
@@ -419,12 +499,18 @@ func TestCreateGrantFromEmail(t *testing.T) {
 
 func TestCreateTokenFromRefreshToken(t *testing.T) {
 	t.Parallel()
+
+	// TODO: stand up a server and test exchanging a refresh token for a new token
 }
 
 func TestCreateTokenFromEmail(t *testing.T) {
 	t.Parallel()
+
+	// TODO: stand up a server and test exchanging an emailed code for a token
 }
 
 func TestCreateTokenFromGoogleID(t *testing.T) {
 	t.Parallel()
+
+	// TODO: stand up a server and test exchanging a Google ID token for a token
 }
