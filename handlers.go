@@ -595,6 +595,10 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 			s.returnError(g.ResponseMethod() == rmRedirect, w, r, serverError, redirectURI)
 			return
 		}
+		// TODO: do we want to return here, so we don't redirect with
+		// the grant? The user should only be able to retrieve their
+		// grant from the out of band method the granter provides, not
+		// from the redirect.
 	}
 
 	// return the grant
