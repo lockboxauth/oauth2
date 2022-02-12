@@ -798,11 +798,11 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				t.Fatalf("Error getting grant %q from storer: %s", emailer.LastCode, err)
 			}
 
-			if age := time.Now().Sub(grant.CreatedAt); age > time.Second {
+			if age := time.Since(grant.CreatedAt); age > time.Second {
 				t.Errorf("Expected grant to be created within the last second, says it was created %s ago", age)
 			}
 
-			if age := grant.CreatedAt.Sub(time.Now()); age > 0 {
+			if age := time.Until(grant.CreatedAt); age > 0 {
 				t.Errorf("Grant somehow created %s from now", age)
 			}
 
