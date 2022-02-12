@@ -15,6 +15,17 @@ type emailer interface {
 	SendMail(ctx context.Context, email, code string) error
 }
 
+type MemoryEmailer struct {
+	LastCode  string
+	LastEmail string
+}
+
+func (m *MemoryEmailer) SendMail(ctx context.Context, email, code string) error {
+	m.LastCode = code
+	m.LastEmail = email
+	return nil
+}
+
 // emailGranter fills the granter interface for handling a Grant passed
 // by its ID. The expectation is that the user will request a Grant be
 // emailed to them as a link, they'll click the link, and end that link
