@@ -569,7 +569,7 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 	clientErr := s.validateClientCredentials(yall.InContext(r.Context(), log), clientID, clientSecret, redirectURI)
 	if !clientErr.IsZero() {
 		log.WithField("api_error", clientErr).Debug("Error validating client")
-		s.returnError(false, w, r, invalidRequestError, "")
+		s.returnError(false, w, r, clientErr, "")
 		return
 	}
 
