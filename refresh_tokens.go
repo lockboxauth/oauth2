@@ -58,6 +58,12 @@ func (r *refreshTokenGranter) Validate(ctx context.Context) APIError {
 	return APIError{}
 }
 
+// ProfileID returns the ID of the profile the grant is for. It must be called
+// after Validate.
+func (r *refreshTokenGranter) ProfileID(ctx context.Context) string {
+	return r.token.ProfileID
+}
+
 // Grant returns a Grant with the values populated as appropriate
 // for a grant generated from a refresh token.
 func (r *refreshTokenGranter) Grant(ctx context.Context, scopes []string) grants.Grant {
@@ -65,9 +71,11 @@ func (r *refreshTokenGranter) Grant(ctx context.Context, scopes []string) grants
 		SourceType: "refresh_token",
 		SourceID:   r.token.ID,
 		Scopes:     r.token.Scopes,
-		ProfileID:  r.token.ProfileID,
-		ClientID:   r.token.ClientID,
-		Used:       false,
+		// TODO: we need to be setting the account ID!
+		AccountID: "",
+		ProfileID: r.token.ProfileID,
+		ClientID:  r.token.ClientID,
+		Used:      false,
 	}
 }
 

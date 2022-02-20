@@ -10,7 +10,7 @@ require (
 	lockbox.dev/accounts v0.4.0
 	lockbox.dev/clients v0.6.1-0.20220212054345-f7c94380f09c
 	lockbox.dev/grants v0.6.0
-	lockbox.dev/scopes v0.3.0
+	lockbox.dev/scopes v0.3.1-0.20220219235751-bc0243a6a8d8
 	lockbox.dev/sessions v0.3.0
 	lockbox.dev/tokens v0.4.0
 	yall.in v0.0.8

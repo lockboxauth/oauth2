@@ -54,6 +54,12 @@ func (g *googleIDGranter) Validate(ctx context.Context) APIError {
 	return APIError{}
 }
 
+// ProfileID returns the ID of the profile the grant is for. It must be called
+// after Validate.
+func (g *googleIDGranter) ProfileID(ctx context.Context) string {
+	return g.userID
+}
+
 // Grant returns a Grant populated with the appropriate values for
 // a Google ID Token-generated Grant.
 func (g *googleIDGranter) Grant(ctx context.Context, scopes []string) grants.Grant {

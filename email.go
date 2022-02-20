@@ -57,6 +57,12 @@ func (g *emailGranter) Validate(ctx context.Context) APIError {
 	return APIError{}
 }
 
+// ProfileID returns the ID of the profile the grant is for. It must be called
+// after Validate.
+func (g *emailGranter) ProfileID(ctx context.Context) string {
+	return g.grant.ProfileID
+}
+
 // Grant returns the grant we retrieved in Validate.
 func (g *emailGranter) Grant(ctx context.Context, scopes []string) grants.Grant {
 	return g.grant
@@ -88,17 +94,22 @@ type emailGrantCreator struct {
 	emailer  emailer
 }
 
-func (g *emailGrantCreator) FillGrant(ctx context.Context, scopes []string) (grants.Grant, APIError) {
+func (g *emailGrantCreator) GetAccount(ctx context.Context) (accounts.Account, APIError) {
 	log := yall.FromContext(ctx)
 	account, err := g.accounts.Get(ctx, g.email)
 	if err != nil {
 		if err == accounts.ErrAccountNotFound {
 			log.WithField("email", g.email).Debug("account not found")
-			return grants.Grant{}, invalidRequestError
+			return accounts.Account{}, invalidRequestError
 		}
 		log.WithError(err).Error("error retrieving account")
-		return grants.Grant{}, serverError
+		return accounts.Account{}, serverError
 	}
+	return account, APIError{}
+}
+
+func (g *emailGrantCreator) FillGrant(ctx context.Context, account accounts.Account, scopes []string) (grants.Grant, APIError) {
+	log := yall.FromContext(ctx)
 	codeBytes, err := uuid.GenerateRandomBytes(32)
 	if err != nil {
 		log.WithError(err).Error("error generating random bytes")

@@ -68,6 +68,9 @@ type granter interface {
 	// if the grant isn't valid, return an error.
 	Validate(ctx context.Context) APIError
 
+	// return the ID of the profile the Grant is for.
+	ProfileID(ctx context.Context) string
+
 	// populate a grant with the specified scopes
 	Grant(ctx context.Context, scopes []string) grants.Grant
 
@@ -85,7 +88,8 @@ type granter interface {
 }
 
 type grantCreator interface {
-	FillGrant(ctx context.Context, scopes []string) (grants.Grant, APIError)
+	GetAccount(ctx context.Context) (accounts.Account, APIError)
+	FillGrant(ctx context.Context, account accounts.Account, scopes []string) (grants.Grant, APIError)
 	ResponseMethod() responseMethod
 	HandleOOBGrant(ctx context.Context, grant grants.Grant) error
 }
@@ -288,8 +292,8 @@ func (s Service) validateClientCredentials(ctx context.Context, clientID, client
 
 // find which scopes should be used for a client
 // if none are passed in, a default set for the client is used
-// if one or more are passed in, scopes the client can't use are stripped
-func (s Service) checkScopes(ctx context.Context, clientID string, ids []string) ([]string, APIError) {
+// if one or more are passed in, scopes the client and account can't use are stripped
+func (s Service) checkScopes(ctx context.Context, clientID, accountID string, ids []string) ([]string, APIError) {
 	var permittedScopes []scopes.Scope
 	var err error
 	if len(ids) < 1 {
@@ -302,11 +306,16 @@ func (s Service) checkScopes(ctx context.Context, clientID string, ids []string)
 		if err != nil {
 			return nil, serverError
 		}
+		if len(resp) != len(ids) {
+			yall.FromContext(ctx).WithField("scope_ids", ids).WithField("scope_results", resp).
+				Warn("fewer scopes than requested returned, one likely doesn't exist")
+		}
 		for _, v := range resp {
 			permittedScopes = append(permittedScopes, v)
 		}
 	}
 	permittedScopes = scopes.FilterByClientID(ctx, permittedScopes, clientID)
+	permittedScopes = scopes.FilterByUserID(ctx, permittedScopes, accountID)
 	results := make([]string, 0, len(permittedScopes))
 	for _, scope := range permittedScopes {
 		results = append(results, scope.ID)
@@ -461,7 +470,7 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 	// figure out what scopes we should be using
 	scopes := strings.Split(r.FormValue("scope"), " ")
 	log = log.WithField("scopes_given", scopes)
-	scopes, apiErr = s.checkScopes(yall.InContext(r.Context(), log), clientID, scopes)
+	scopes, apiErr = s.checkScopes(yall.InContext(r.Context(), log), clientID, g.ProfileID(yall.InContext(r.Context(), log)), scopes)
 	if !apiErr.IsZero() {
 		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error checking scopes")
 		s.returnError(g.Redirects(), w, r, apiErr, redirectURI)
@@ -596,6 +605,14 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	log = log.WithField("redirect_uri", redirectURI)
 
+	// get the account we're creating a grant for
+	account, apiErr := g.GetAccount(yall.InContext(r.Context(), log))
+	if apiErr.Error != "" {
+		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("error getting account")
+		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)
+		return
+	}
+
 	// figure out what scopes we should be using
 	var scopes []string
 	for _, scope := range strings.Split(r.FormValue("scope"), " ") {
@@ -604,7 +621,7 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	log = log.WithField("scopes_given", scopes)
-	scopes, apiErr := s.checkScopes(yall.InContext(r.Context(), log), clientID, scopes)
+	scopes, apiErr = s.checkScopes(yall.InContext(r.Context(), log), clientID, account.ProfileID, scopes)
 	if !apiErr.IsZero() {
 		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error checking scopes")
 		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)
@@ -614,7 +631,7 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 	log = log.WithField("scopes", scopes)
 
 	// fill out our grant fields
-	grant, apiErr := g.FillGrant(yall.InContext(r.Context(), log), scopes)
+	grant, apiErr := g.FillGrant(yall.InContext(r.Context(), log), account, scopes)
 	if apiErr.Error != "" {
 		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)
 		return

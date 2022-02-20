@@ -642,16 +642,224 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			expectedBody:   `{"error": "invalid_client"}`,
 		},
 
-		/*
-			// test setting non-default scopes
-			"non-default-scopes": {},
-			// test that scopes the client isn't authorized to use are
-			// stripped
-			"strip-unauthorized-client-scopes": {},
-			// test that scopes the user isn't authorized to use are
-			// stripped
-			"strip-unauthorized-user-scopes": {},
-		*/
+		// test requesting scopes explicitly instead of using the
+		// defaults
+		"non-default-scopes": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			body: "response_type=email&email=test@lockbox.dev&scope=https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fdefault%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-default",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": []string{"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 204,
+			expectedEmail:  "test@lockbox.dev",
+			expectedCode:   true,
+			expectedScopes: []string{
+				"https://scopes.lockbox.dev/testing/default",
+				"https://scopes.lockbox.dev/testing/not-default",
+			},
+			expectedAccountID: "test@lockbox.dev",
+			expectedProfileID: "testing123",
+			expectedClientID:  "testclient",
+		},
+
+		// test requesting scopes that the client can't use
+		// the request should succeed, but those scopes shouldn't be
+		// included in the grant that's returned
+		"strip-unauthorized-client-scopes": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:               "https://scopes.lockbox.dev/testing/included",
+					UserPolicy:       scopes.PolicyAllowAll,
+					ClientPolicy:     scopes.PolicyDefaultDeny,
+					ClientExceptions: []string{"testclient"},
+				},
+				{
+					ID:               "https://scopes.lockbox.dev/testing/not-included",
+					UserPolicy:       scopes.PolicyAllowAll,
+					ClientPolicy:     scopes.PolicyDefaultDeny,
+					ClientExceptions: []string{"nottherightclient"},
+				},
+				{
+					ID:               "https://scopes.lockbox.dev/testing/excluded",
+					UserPolicy:       scopes.PolicyAllowAll,
+					ClientPolicy:     scopes.PolicyDefaultAllow,
+					ClientExceptions: []string{"testclient"},
+				},
+				{
+					ID:               "https://scopes.lockbox.dev/testing/not-excluded",
+					UserPolicy:       scopes.PolicyAllowAll,
+					ClientPolicy:     scopes.PolicyDefaultAllow,
+					ClientExceptions: []string{"someotherclient"},
+				},
+			},
+			body: "response_type=email&email=test@lockbox.dev&scope=https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fdefault%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fincluded%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-included%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fexcluded%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-excluded",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": []string{"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 204,
+			expectedEmail:  "test@lockbox.dev",
+			expectedCode:   true,
+			expectedScopes: []string{
+				"https://scopes.lockbox.dev/testing/default",
+				"https://scopes.lockbox.dev/testing/included",
+				"https://scopes.lockbox.dev/testing/not-excluded",
+			},
+			expectedAccountID: "test@lockbox.dev",
+			expectedProfileID: "testing123",
+			expectedClientID:  "testclient",
+		},
+
+		// test requesting scopes that the user can't use
+		// the request should succeed, but those scopes shouldn't be
+		// included in the grant that's returned
+		"strip-unauthorized-user-scopes": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:             "https://scopes.lockbox.dev/testing/included",
+					UserPolicy:     scopes.PolicyDefaultDeny,
+					UserExceptions: []string{"testing123"},
+					ClientPolicy:   scopes.PolicyAllowAll,
+				},
+				{
+					ID:             "https://scopes.lockbox.dev/testing/not-included",
+					UserPolicy:     scopes.PolicyDefaultDeny,
+					UserExceptions: []string{"nottherightuser"},
+					ClientPolicy:   scopes.PolicyAllowAll,
+				},
+				{
+					ID:             "https://scopes.lockbox.dev/testing/excluded",
+					UserPolicy:     scopes.PolicyDefaultAllow,
+					UserExceptions: []string{"testing123"},
+					ClientPolicy:   scopes.PolicyAllowAll,
+				},
+				{
+					ID:             "https://scopes.lockbox.dev/testing/not-excluded",
+					UserPolicy:     scopes.PolicyDefaultAllow,
+					UserExceptions: []string{"someotheruser"},
+					ClientPolicy:   scopes.PolicyAllowAll,
+				},
+			},
+			body: "response_type=email&email=test@lockbox.dev&scope=https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fdefault%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fincluded%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-included%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fexcluded%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-excluded",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": []string{"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 204,
+			expectedEmail:  "test@lockbox.dev",
+			expectedCode:   true,
+			expectedScopes: []string{
+				"https://scopes.lockbox.dev/testing/default",
+				"https://scopes.lockbox.dev/testing/included",
+				"https://scopes.lockbox.dev/testing/not-excluded",
+			},
+			expectedAccountID: "test@lockbox.dev",
+			expectedProfileID: "testing123",
+			expectedClientID:  "testclient",
+		},
 	}
 
 	codeRE, err := regexp.Compile("^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}|[A-Za-z0-9-_]{3})?$")
