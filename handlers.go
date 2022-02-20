@@ -607,7 +607,7 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 
 	// get the account we're creating a grant for
 	account, apiErr := g.GetAccount(yall.InContext(r.Context(), log))
-	if apiErr.Error != "" {
+	if !apiErr.IsZero() {
 		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("error getting account")
 		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)
 		return
@@ -632,7 +632,7 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 
 	// fill out our grant fields
 	grant, apiErr := g.FillGrant(yall.InContext(r.Context(), log), account, scopes)
-	if apiErr.Error != "" {
+	if !apiErr.IsZero() {
 		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)
 		return
 	}
