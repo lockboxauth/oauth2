@@ -71,6 +71,9 @@ type granter interface {
 	// return the ID of the profile the Grant is for.
 	ProfileID(ctx context.Context) string
 
+	// return the ID of the account the Grant is for.
+	AccountID(ctx context.Context) string
+
 	// populate a grant with the specified scopes
 	Grant(ctx context.Context, scopes []string) grants.Grant
 
@@ -293,7 +296,7 @@ func (s Service) validateClientCredentials(ctx context.Context, clientID, client
 // find which scopes should be used for a client
 // if none are passed in, a default set for the client is used
 // if one or more are passed in, scopes the client and account can't use are stripped
-func (s Service) checkScopes(ctx context.Context, clientID, accountID string, ids []string) ([]string, APIError) {
+func (s Service) checkScopes(ctx context.Context, clientID, profileID, accountID string, ids []string) ([]string, APIError) {
 	var permittedScopes []scopes.Scope
 	var err error
 	if len(ids) < 1 {
@@ -470,7 +473,8 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 	// figure out what scopes we should be using
 	scopes := strings.Split(r.FormValue("scope"), " ")
 	log = log.WithField("scopes_given", scopes)
-	scopes, apiErr = s.checkScopes(yall.InContext(r.Context(), log), clientID, g.ProfileID(yall.InContext(r.Context(), log)), scopes)
+	logCtx := yall.InContext(r.Context(), log)
+	scopes, apiErr = s.checkScopes(logCtx, clientID, g.ProfileID(logCtx), g.AccountID(logCtx), scopes)
 	if !apiErr.IsZero() {
 		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error checking scopes")
 		s.returnError(g.Redirects(), w, r, apiErr, redirectURI)
@@ -621,7 +625,7 @@ func (s Service) handleGrantRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	log = log.WithField("scopes_given", scopes)
-	scopes, apiErr = s.checkScopes(yall.InContext(r.Context(), log), clientID, account.ProfileID, scopes)
+	scopes, apiErr = s.checkScopes(yall.InContext(r.Context(), log), clientID, account.ProfileID, account.ID, scopes)
 	if !apiErr.IsZero() {
 		log.WithField("error_code", apiErr.Code).WithField("error_type", apiErr.Error).Debug("Error checking scopes")
 		s.returnError(g.ResponseMethod() == rmRedirect, w, r, apiErr, redirectURI)

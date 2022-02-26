@@ -12,14 +12,14 @@ require (
 	lockbox.dev/grants v0.6.0
 	lockbox.dev/scopes v0.3.1-0.20220219235751-bc0243a6a8d8
 	lockbox.dev/sessions v0.3.0
-	lockbox.dev/tokens v0.4.0
+	lockbox.dev/tokens v0.4.1-0.20220226121017-77f3eb5665fe
 	yall.in v0.0.8
 )
 
 require (
 	github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c // indirect
 	github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4 // indirect
-	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.3.0 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.0 // indirect

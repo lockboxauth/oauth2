@@ -23,8 +23,8 @@ type googleIDGranter struct {
 	accounts     accounts.Storer       // the Storer that grants access to accounts data
 
 	// set by Validate and here so Grant can use them
-	userID string
-	token  *googleid.Token
+	account accounts.Account
+	token   *googleid.Token
 }
 
 // Validate checks that the ID token is actually valid and should
@@ -46,18 +46,20 @@ func (g *googleIDGranter) Validate(ctx context.Context) APIError {
 		yall.FromContext(ctx).WithError(err).WithField("email", token.Email).Error("Error retriving account")
 		return serverError
 	}
-	if account.ProfileID == "" {
-		yall.FromContext(ctx).WithError(err).WithField("email", token.Email).Debug("Empty ProfileID")
-		return invalidGrantError
-	}
-	g.userID = account.ProfileID
+	g.account = account
 	return APIError{}
 }
 
 // ProfileID returns the ID of the profile the grant is for. It must be called
 // after Validate.
 func (g *googleIDGranter) ProfileID(ctx context.Context) string {
-	return g.userID
+	return g.account.ProfileID
+}
+
+// AccountID returns the ID of the account the grant is for. It must be called
+// after Validate.
+func (g *googleIDGranter) AccountID(ctx context.Context) string {
+	return g.account.ID
 }
 
 // Grant returns a Grant populated with the appropriate values for
@@ -66,8 +68,8 @@ func (g *googleIDGranter) Grant(ctx context.Context, scopes []string) grants.Gra
 	return grants.Grant{
 		SourceType: "google_id",
 		SourceID:   g.token.Iss + ";" + g.token.Sub + ";" + strconv.FormatInt(g.token.Iat, 10),
-		AccountID:  strings.ToLower(g.token.Email),
-		ProfileID:  g.userID,
+		AccountID:  g.account.ID,
+		ProfileID:  g.account.ProfileID,
 		ClientID:   g.client,
 		Scopes:     scopes,
 		Used:       false,

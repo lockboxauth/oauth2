@@ -63,6 +63,12 @@ func (g *emailGranter) ProfileID(ctx context.Context) string {
 	return g.grant.ProfileID
 }
 
+// AccountID returns the ID of the account the grant is for. It must be called
+// after Validate.
+func (g *emailGranter) AccountID(ctx context.Context) string {
+	return g.grant.AccountID
+}
+
 // Grant returns the grant we retrieved in Validate.
 func (g *emailGranter) Grant(ctx context.Context, scopes []string) grants.Grant {
 	return g.grant

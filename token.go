@@ -28,6 +28,7 @@ func (s Service) IssueRefreshToken(ctx context.Context, grant grants.Grant) (str
 		CreatedFrom: grant.ID,
 		Scopes:      grant.Scopes,
 		ProfileID:   grant.ProfileID,
+		AccountID:   grant.AccountID,
 		ClientID:    grant.ClientID,
 	})
 	if err != nil {
