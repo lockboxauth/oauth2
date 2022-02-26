@@ -419,6 +419,17 @@ func (s Service) getGrantCreator(values url.Values, clientID string) grantCreato
 func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request) {
 	log := yall.FromContext(r.Context())
 
+	// check our content-type. r.ParseForm() only works if the header is
+	// set to application/x-www-form-urlencoded
+	if !isContentType(r.Context(), r, "application/x-www-form-urlencoded") {
+		log.WithField("content_type", r.Header.Get("Content-Type")).Debug("invalid content type")
+		s.returnError(false, w, r, APIError{
+			Error: "unsupported_content_type",
+			Code:  http.StatusUnsupportedMediaType,
+		}, "")
+		return
+	}
+
 	// explicitly parse the form, so we can handle the error
 	err := r.ParseForm()
 	if err != nil {
@@ -435,7 +446,7 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 	clientErr := s.validateClientCredentials(yall.InContext(r.Context(), log), clientID, clientSecret, redirectURI)
 	if !clientErr.IsZero() {
 		log.WithField("api_error", clientErr).Debug("Error validating client")
-		s.returnError(false, w, r, invalidRequestError, "")
+		s.returnError(false, w, r, clientErr, "")
 		return
 	}
 

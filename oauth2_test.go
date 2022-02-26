@@ -1067,20 +1067,463 @@ func TestCreateGrantFromEmail(t *testing.T) {
 	}
 }
 
-func TestCreateTokenFromRefreshToken(t *testing.T) {
+func TestCreateToken(t *testing.T) {
 	t.Parallel()
 
-	// TODO: stand up a server and test exchanging a refresh token for a new token
-}
+	type testCase struct {
+		// existingAccounts are the account fixtures that should be
+		// populated before the request
+		existingAccounts []accounts.Account
 
-func TestCreateTokenFromEmail(t *testing.T) {
-	t.Parallel()
+		// existingClients are the client fixtures that should be
+		// populated before the request
+		existingClients []clients.Client
 
-	// TODO: stand up a server and test exchanging an emailed code for a token
-}
+		// existingScopes are the scope fixtures that should be
+		// populated before the request
+		existingScopes []scopes.Scope
 
-func TestCreateTokenFromGoogleID(t *testing.T) {
-	t.Parallel()
+		// existingTokens are the token fixtures that should be
+		// populated before the request
+		existingTokens []tokens.RefreshToken
 
-	// TODO: stand up a server and test exchanging a Google ID token for a token
+		// params are the URL parameters that should be included in the
+		// request
+		params url.Values
+
+		// overridePath overrides the path portion of the URL,
+		// including the query parameters. `params` will have no effect
+		// if this is set.
+		overridePath string
+
+		// overrideMethod overrides the method of the request
+		overrideMethod string
+
+		// body is the body of the request
+		body string
+
+		// headers are the request headers to include
+		headers http.Header
+
+		// expectedStatus is the HTTP status code we expect for the
+		// response
+		expectedStatus int
+
+		// expectedBody is the response body we expect for this request
+		expectedBody string
+	}
+
+	tests := map[string]testCase{
+		// test a request that doesn't specify a Content-Type header,
+		// which we should explicitly reject because requests without
+		// Content-Type headers means the net/http library won't parse
+		// the body and that leads to all sorts of weirdness, so we
+		// should just explicitly reject them
+		"no-content-type": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			// TODO: make body otherwise correct
+			body: "response_type=email&email=test@lockbox.dev",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+			},
+			expectedStatus: http.StatusUnsupportedMediaType,
+			expectedBody:   `{"error": "unsupported_content_type"}`,
+		},
+
+		// test a request that specifies an unsupported Content-Type
+		// header which we should explicitly reject because requests
+		// with Content-Type headers set to anything but
+		// application/x-www-form-urlencoded means the net/http library
+		// won't parse the body and that leads to all sorts of
+		// weirdness, so we should just explicitly reject them
+		"unsupported-content-type": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			// TODO: make body have the right fields, just in JSON format
+			body: `{"response_type": "email", "email": "test@lockbox.dev"}`,
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": []string{"application/json"},
+			},
+			expectedStatus: http.StatusUnsupportedMediaType,
+			expectedBody:   `{"error": "unsupported_content_type"}`,
+		},
+
+		// test a request that doesn't have any client credentials
+		// specified
+		"no-client-credentials": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			// TODO: make body otherwise correct
+			body: "grant_type=code",
+			headers: map[string][]string{
+				"Content-Type": []string{"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   `{"error": "invalid_client"}`,
+		},
+
+		// test a client ID that doesn't correspond to an actual client
+		"nonexistent-client": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			body: "grant_type=code",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("fakeclient:testing123")),
+				},
+				"Content-Type": []string{"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 401,
+			expectedBody:   `{"error": "invalid_client"}`,
+		},
+
+		// test using the wrong client secret
+		"wrong-client-secret": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash(t, "testing"),
+					SecretScheme: secretScheme(t, "testing"),
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			// TODO: make body otherwise correct
+			body: "grant_type=code",
+			headers: map[string][]string{
+				"Authorization": []string{
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing1234")),
+				},
+				"Content-Type": []string{"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 401,
+			expectedBody:   `{"error": "invalid_client"}`,
+		},
+	}
+
+	for name, tc := range tests {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			// set up the service
+			logLevel := strings.ToUpper(os.Getenv("LOG_LEVEL"))
+			if logLevel == "" {
+				logLevel = "ERROR"
+			}
+			logger := yall.New(testLogger.New(t, yall.Severity(logLevel)))
+			acctsStorer, err := accountsMemory.NewStorer()
+			if err != nil {
+				t.Fatalf("error creating in-memory storer for accounts: %s", err)
+			}
+			for _, acct := range tc.existingAccounts {
+				err = acctsStorer.Create(context.Background(), acct)
+				if err != nil {
+					t.Fatalf("error populating account fixture %+v: %s", acct, err)
+				}
+			}
+			clientsStorer, err := clientsMemory.NewStorer()
+			if err != nil {
+				t.Fatalf("error creating in-memory storer for clients: %s", err)
+			}
+			for _, client := range tc.existingClients {
+				err = clientsStorer.Create(context.Background(), client)
+				if err != nil {
+					t.Fatalf("error populating client fixture %+v: %s", client, err)
+				}
+			}
+			grantsStorer, err := grantsMemory.NewStorer()
+			if err != nil {
+				t.Fatalf("error creating in-memory storer for grants: %s", err)
+			}
+			scopesStorer, err := scopesMemory.NewStorer()
+			if err != nil {
+				t.Fatalf("error creating in-memory storer for scopes: %s", err)
+			}
+			for _, scope := range tc.existingScopes {
+				err = scopesStorer.Create(context.Background(), scope)
+				if err != nil {
+					t.Fatalf("error populating scope fixture %+v: %s", scope, err)
+				}
+			}
+			tokensStorer, err := tokensMemory.NewStorer()
+			if err != nil {
+				t.Fatalf("error creating in-memory storer for tokens: %s", err)
+			}
+			for _, token := range tc.existingTokens {
+				err = tokensStorer.CreateToken(context.Background(), token)
+				if err != nil {
+					t.Fatalf("error populating token fixture %+v: %s", token, err)
+				}
+			}
+			privateKey, err := rsa.GenerateKey(rand.Reader, 128)
+			if err != nil {
+				t.Fatalf("error creating private key: %s", err)
+			}
+			emailer := new(MemoryEmailer)
+			s := Service{
+				TokenExpiresIn: 600,
+				Accounts: accounts.Dependencies{
+					Storer: acctsStorer,
+				},
+				Clients: clientsStorer,
+				Grants: grants.Dependencies{
+					Storer: grantsStorer,
+				},
+				Refresh: tokens.Dependencies{
+					Storer:        tokensStorer,
+					JWTPrivateKey: privateKey,
+					JWTPublicKey:  privateKey.Public().(*rsa.PublicKey),
+					ServiceID:     "test",
+				},
+				Scopes: scopes.Dependencies{
+					Storer: scopesStorer,
+				},
+				Sessions: sessions.Dependencies{
+					JWTPrivateKey: privateKey,
+					JWTPublicKey:  privateKey.Public().(*rsa.PublicKey),
+					ServiceID:     "test",
+				},
+				Log:     logger,
+				Emailer: emailer,
+			}
+
+			// create request
+			params := url.Values{}
+			if tc.params != nil {
+				for k, v := range tc.params {
+					params[k] = append(params[k], v...)
+				}
+			}
+			requestPath := "/token?" + params.Encode()
+			if tc.overridePath != "" {
+				requestPath = tc.overridePath
+			}
+			method := http.MethodPost
+			if tc.overrideMethod != "" {
+				method = tc.overrideMethod
+			}
+			req := httptest.NewRequest(method, requestPath, bytes.NewBuffer([]byte(tc.body)))
+			req.Header = tc.headers
+			req = req.WithContext(yall.InContext(req.Context(), logger))
+			w := httptest.NewRecorder()
+
+			// do the request
+			s.handleAccessTokenRequest(w, req)
+			resp := w.Result()
+			defer resp.Body.Close()
+			gotBody, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("Error reading response body: %v", err)
+			}
+
+			// check that the HTTP level stuff is what we expected
+			if resp.StatusCode != tc.expectedStatus {
+				t.Errorf("Expected response status code to be %d, got %d", tc.expectedStatus, resp.StatusCode)
+			}
+			switch strings.ToLower(resp.Header.Get("Content-Type")) {
+			case "application/json":
+				opts := jsondiff.DefaultConsoleOptions()
+				match, diff := jsondiff.Compare([]byte(tc.expectedBody), gotBody, &opts)
+				if match != jsondiff.FullMatch {
+					t.Errorf("Unexpected response body: %s", diff)
+				}
+				if match > jsondiff.NoMatch {
+					t.Logf("first argument: %s", tc.expectedBody)
+					t.Logf("second argument: %s", gotBody)
+				}
+			default:
+				if string(gotBody) != tc.expectedBody {
+					t.Errorf("Expected response body to be %q, got %q", tc.expectedBody, string(gotBody))
+				}
+			}
+
+			// TODO: check that the application-level parts are what we expected?
+			// check that the grant that was exchanged for the token is now marked as used
+		})
+	}
 }
