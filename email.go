@@ -3,6 +3,7 @@ package oauth2
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 
 	uuid "github.com/hashicorp/go-uuid"
 	yall "yall.in"
@@ -15,12 +16,18 @@ type emailer interface {
 	SendMail(ctx context.Context, email, code string) error
 }
 
+// MemoryEmailer is an in-memory implementation of the `emailer` interface that
+// simply tracks the last code sent and the email it was "sent" to.
+//
+// Its intended use is in testing.
 type MemoryEmailer struct {
 	LastCode  string
 	LastEmail string
 }
 
-func (m *MemoryEmailer) SendMail(ctx context.Context, email, code string) error {
+// SendMail records the passed code and email in the `MemoryEmailer` for later
+// retrieval. It never returns an error.
+func (m *MemoryEmailer) SendMail(_ context.Context, email, code string) error {
 	m.LastCode = code
 	m.LastEmail = email
 	return nil
@@ -46,7 +53,7 @@ func (g *emailGranter) Validate(ctx context.Context) APIError {
 	log = log.WithField("passed_code", g.code)
 	grant, err := g.grants.GetGrantBySource(ctx, "email", g.code)
 	if err != nil {
-		if err == grants.ErrGrantNotFound {
+		if errors.Is(err, grants.ErrGrantNotFound) {
 			log.Debug("grant not found")
 			return invalidRequestError
 		}
@@ -59,37 +66,37 @@ func (g *emailGranter) Validate(ctx context.Context) APIError {
 
 // ProfileID returns the ID of the profile the grant is for. It must be called
 // after Validate.
-func (g *emailGranter) ProfileID(ctx context.Context) string {
+func (g *emailGranter) ProfileID(_ context.Context) string {
 	return g.grant.ProfileID
 }
 
 // AccountID returns the ID of the account the grant is for. It must be called
 // after Validate.
-func (g *emailGranter) AccountID(ctx context.Context) string {
+func (g *emailGranter) AccountID(_ context.Context) string {
 	return g.grant.AccountID
 }
 
 // Grant returns the grant we retrieved in Validate.
-func (g *emailGranter) Grant(ctx context.Context, scopes []string) grants.Grant {
+func (g *emailGranter) Grant(_ context.Context, _ []string) grants.Grant {
 	return g.grant
 }
 
 // Granted does nothing, the Grant will automatically be marked as used
 // when it is exchanged for a session.
-func (g *emailGranter) Granted(ctx context.Context) error {
+func (*emailGranter) Granted(_ context.Context) error {
 	return nil
 }
 
 // Redirects returns false, indicating we want to use the JSON request/response
 // flow, not the URL querystring redirect flow.
-func (g *emailGranter) Redirects() bool {
+func (*emailGranter) Redirects() bool {
 	return false
 }
 
 // CreatesGrantsInline returns false, indicating we don't want the access token
 // exchange to generate a new Grant, we just want to use a previously generated
 // Grant.
-func (g *emailGranter) CreatesGrantsInline() bool {
+func (*emailGranter) CreatesGrantsInline() bool {
 	return false
 }
 
@@ -100,11 +107,13 @@ type emailGrantCreator struct {
 	emailer  emailer
 }
 
+// GetAccount returns the `accounts.Account` associated with `g.email`. The
+// APIError returned is intended to be rendered, not inspected.
 func (g *emailGrantCreator) GetAccount(ctx context.Context) (accounts.Account, APIError) {
 	log := yall.FromContext(ctx)
 	account, err := g.accounts.Get(ctx, g.email)
 	if err != nil {
-		if err == accounts.ErrAccountNotFound {
+		if errors.Is(err, accounts.ErrAccountNotFound) {
 			log.WithField("email", g.email).Debug("account not found")
 			return accounts.Account{}, invalidRequestError
 		}
@@ -114,9 +123,12 @@ func (g *emailGrantCreator) GetAccount(ctx context.Context) (accounts.Account, A
 	return account, APIError{}
 }
 
+// FillGrant creates a new `grants.Grant` with a `SourceType` of "email". The
+// `SourceID` is a randomly generated URL-safe-base64-encoded string.
 func (g *emailGrantCreator) FillGrant(ctx context.Context, account accounts.Account, scopes []string) (grants.Grant, APIError) {
 	log := yall.FromContext(ctx)
-	codeBytes, err := uuid.GenerateRandomBytes(32)
+	numCodeBytes := 32
+	codeBytes, err := uuid.GenerateRandomBytes(numCodeBytes)
 	if err != nil {
 		log.WithError(err).Error("error generating random bytes")
 		return grants.Grant{}, serverError
@@ -131,10 +143,14 @@ func (g *emailGrantCreator) FillGrant(ctx context.Context, account accounts.Acco
 	}, APIError{}
 }
 
-func (g *emailGrantCreator) ResponseMethod() responseMethod {
+// ResponseMethod reports that emailGrantCreator responses should be sent out
+// of band, not through redirect or returning them in the response.
+func (*emailGrantCreator) ResponseMethod() responseMethod {
 	return rmOOB
 }
 
+// HandleOOBGrant sends the email containing the `grants.Grant` code that can
+// be exchanged at the token endpoint for an access token.
 func (g *emailGrantCreator) HandleOOBGrant(ctx context.Context, grant grants.Grant) error {
 	log := yall.FromContext(ctx)
 	err := g.emailer.SendMail(ctx, g.email, grant.SourceID)

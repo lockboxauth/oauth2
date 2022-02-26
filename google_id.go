@@ -43,7 +43,7 @@ func (g *googleIDGranter) Validate(ctx context.Context) APIError {
 	g.token = token
 	account, err := g.accounts.Get(ctx, strings.ToLower(token.Email))
 	if err != nil {
-		yall.FromContext(ctx).WithError(err).WithField("email", token.Email).Error("Error retriving account")
+		yall.FromContext(ctx).WithError(err).WithField("email", token.Email).Error("Error retrieving account")
 		return serverError
 	}
 	g.account = account
@@ -52,22 +52,23 @@ func (g *googleIDGranter) Validate(ctx context.Context) APIError {
 
 // ProfileID returns the ID of the profile the grant is for. It must be called
 // after Validate.
-func (g *googleIDGranter) ProfileID(ctx context.Context) string {
+func (g *googleIDGranter) ProfileID(_ context.Context) string {
 	return g.account.ProfileID
 }
 
 // AccountID returns the ID of the account the grant is for. It must be called
 // after Validate.
-func (g *googleIDGranter) AccountID(ctx context.Context) string {
+func (g *googleIDGranter) AccountID(_ context.Context) string {
 	return g.account.ID
 }
 
 // Grant returns a Grant populated with the appropriate values for
 // a Google ID Token-generated Grant.
-func (g *googleIDGranter) Grant(ctx context.Context, scopes []string) grants.Grant {
+func (g *googleIDGranter) Grant(_ context.Context, scopes []string) grants.Grant {
+	intBase := 10
 	return grants.Grant{
 		SourceType: "google_id",
-		SourceID:   g.token.Iss + ";" + g.token.Sub + ";" + strconv.FormatInt(g.token.Iat, 10),
+		SourceID:   g.token.Iss + ";" + g.token.Sub + ";" + strconv.FormatInt(g.token.Iat, intBase),
 		AccountID:  g.account.ID,
 		ProfileID:  g.account.ProfileID,
 		ClientID:   g.client,
@@ -78,16 +79,19 @@ func (g *googleIDGranter) Grant(ctx context.Context, scopes []string) grants.Gra
 
 // Granted does nothing, we rely on SourceID to keep from issuing
 // duplicate grants for the same token.
-func (g *googleIDGranter) Granted(ctx context.Context) error {
+func (*googleIDGranter) Granted(_ context.Context) error {
 	return nil
 }
 
 // Redirects returns false, indicating we want to use the JSON request/response
 // flow, not the URL querystring redirect flow.
-func (g *googleIDGranter) Redirects() bool {
+func (*googleIDGranter) Redirects() bool {
 	return false
 }
 
-func (g *googleIDGranter) CreatesGrantsInline() bool {
+// CreatesGrantsInline reports that `googleIDGranter` creates Grants inline in
+// the token endpoint, they don't need to be pre-created using the authorize
+// endpoint.
+func (*googleIDGranter) CreatesGrantsInline() bool {
 	return true
 }

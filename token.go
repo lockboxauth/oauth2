@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	uuid "github.com/hashicorp/go-uuid"
@@ -12,19 +13,20 @@ import (
 	"lockbox.dev/tokens"
 )
 
+// Token is an OAuth2-style token response.
 type Token struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	Scope        string `json:"scope,omitempty"`
+	AccessToken  string `json:"access_token"`            //nolint:tagliatelle // look, talk to the OAuth2 spec
+	TokenType    string `json:"token_type"`              //nolint:tagliatelle // look, talk to the OAuth2 spec
+	ExpiresIn    int    `json:"expires_in,omitempty"`    //nolint:tagliatelle // look, talk to the OAuth2 spec
+	RefreshToken string `json:"refresh_token,omitempty"` //nolint:tagliatelle // look, talk to the OAuth2 spec
+	Scope        string `json:"scope,omitempty"`         //nolint:tagliatelle // look, talk to the OAuth2 spec
 }
 
 // IssueRefreshToken creates a Refresh Token and stores it in the service indicated by
 // `Refresh` on `s`. It fills the token with the appropriate values from `grant`, sets
 // any unset defaults, and stores the token before returning it.
 func (s Service) IssueRefreshToken(ctx context.Context, grant grants.Grant) (string, error) {
-	t, err := tokens.FillTokenDefaults(tokens.RefreshToken{
+	refresh, err := tokens.FillTokenDefaults(tokens.RefreshToken{
 		CreatedFrom: grant.ID,
 		Scopes:      grant.Scopes,
 		ProfileID:   grant.ProfileID,
@@ -34,11 +36,11 @@ func (s Service) IssueRefreshToken(ctx context.Context, grant grants.Grant) (str
 	if err != nil {
 		return "", err
 	}
-	token, err := s.Refresh.CreateJWT(ctx, t)
+	token, err := s.Refresh.CreateJWT(ctx, refresh)
 	if err != nil {
 		return "", err
 	}
-	err = s.Refresh.Storer.CreateToken(ctx, t)
+	err = s.Refresh.Storer.CreateToken(ctx, refresh)
 	if err != nil {
 		return "", err
 	}
@@ -63,11 +65,11 @@ func (s Service) ValidateRefreshToken(ctx context.Context, token, client string)
 // reused.
 func (s Service) UseRefreshToken(ctx context.Context, tokenID string) error {
 	err := s.Refresh.Storer.UseToken(ctx, tokenID)
-	if err != nil && err != tokens.ErrTokenUsed {
+	if err != nil && !errors.Is(err, tokens.ErrTokenUsed) {
 		yall.FromContext(ctx).WithField("token", tokenID).WithError(err).Error("Error using token.")
 		return err
 	}
-	if err == tokens.ErrTokenUsed {
+	if errors.Is(err, tokens.ErrTokenUsed) {
 		return err
 	}
 	return nil

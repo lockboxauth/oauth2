@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	yall "yall.in"
@@ -31,7 +32,7 @@ func (s Service) issueTokens(ctx context.Context, grant grants.Grant) (Token, AP
 		TokenType:    "Bearer",
 		ExpiresIn:    s.TokenExpiresIn,
 		RefreshToken: refresh,
-		Scope:        strings.Join([]string(grant.Scopes), ","),
+		Scope:        strings.Join(grant.Scopes, ","),
 	}, APIError{}
 }
 
@@ -48,7 +49,7 @@ type refreshTokenGranter struct {
 func (r *refreshTokenGranter) Validate(ctx context.Context) APIError {
 	token, err := r.deps.ValidateRefreshToken(ctx, r.tokenVal, r.client)
 	if err != nil {
-		if err == tokens.ErrInvalidToken {
+		if errors.Is(err, tokens.ErrInvalidToken) {
 			return invalidGrantError
 		}
 		r.deps.Log.WithError(err).Error("Error validating refresh token")
@@ -60,23 +61,23 @@ func (r *refreshTokenGranter) Validate(ctx context.Context) APIError {
 
 // ProfileID returns the ID of the profile the grant is for. It must be called
 // after Validate.
-func (r *refreshTokenGranter) ProfileID(ctx context.Context) string {
+func (r *refreshTokenGranter) ProfileID(_ context.Context) string {
 	return r.token.ProfileID
 }
 
 // AccountID returns the ID of the account the grant is for. It must be called
 // after Validate.
-func (r *refreshTokenGranter) AccountID(ctx context.Context) string {
+func (r *refreshTokenGranter) AccountID(_ context.Context) string {
 	return r.token.AccountID
 }
 
 // Grant returns a Grant with the values populated as appropriate
 // for a grant generated from a refresh token.
-func (r *refreshTokenGranter) Grant(ctx context.Context, scopes []string) grants.Grant {
+func (r *refreshTokenGranter) Grant(_ context.Context, requestedScopes []string) grants.Grant {
 	return grants.Grant{
 		SourceType: "refresh_token",
 		SourceID:   r.token.ID,
-		Scopes:     r.token.Scopes,
+		Scopes:     requestedScopes,
 		AccountID:  r.token.AccountID,
 		ProfileID:  r.token.ProfileID,
 		ClientID:   r.token.ClientID,
@@ -92,10 +93,13 @@ func (r *refreshTokenGranter) Granted(ctx context.Context) error {
 // Redirects returns false, indicating that when using this
 // grant type, we want the JSON request/response flow, not
 // the URL querystring redirect flow.
-func (r *refreshTokenGranter) Redirects() bool {
+func (*refreshTokenGranter) Redirects() bool {
 	return false
 }
 
-func (r *refreshTokenGranter) CreatesGrantsInline() bool {
+// CreatesGrantsInline reports that `refreshTokenGranter` creates its grants as
+// part of the token endpoint, without needing to call the authorize endpoint
+// first.
+func (*refreshTokenGranter) CreatesGrantsInline() bool {
 	return true
 }

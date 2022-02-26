@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nsf/jsondiff"
 	"lockbox.dev/accounts"
 	accountsMemory "lockbox.dev/accounts/storers/memory"
 	"lockbox.dev/clients"
@@ -28,28 +27,22 @@ import (
 	"lockbox.dev/sessions"
 	"lockbox.dev/tokens"
 	tokensMemory "lockbox.dev/tokens/storers/memory"
+
+	"github.com/nsf/jsondiff"
 	yall "yall.in"
 	testLogger "yall.in/testing"
 )
 
-func secretHash(t *testing.T, secret string) string {
-	change, err := clients.ChangeSecret([]byte(secret))
-	if err != nil {
-		t.Fatalf("error generating hash from %q: %v", secret, err)
-	}
-	return *change.SecretHash
-}
-
-func secretScheme(t *testing.T, secret string) string {
-	change, err := clients.ChangeSecret([]byte(secret))
-	if err != nil {
-		t.Fatalf("error generating hash from %q: %v", secret, err)
-	}
-	return *change.SecretScheme
-}
-
 func TestCreateGrantFromEmail(t *testing.T) {
 	t.Parallel()
+
+	change, err := clients.ChangeSecret([]byte("testing"))
+	if err != nil {
+		t.Fatalf("error generating secret hash: %v", err)
+	}
+
+	secretHash := *change.SecretHash
+	secretScheme := *change.SecretScheme
 
 	type testCase struct {
 		// fixtures to include prior to the request being made
@@ -120,8 +113,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -186,8 +179,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -239,8 +232,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -279,8 +272,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -328,8 +321,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -378,8 +371,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -429,8 +422,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -491,8 +484,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -550,8 +543,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -604,8 +597,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -659,8 +652,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -723,8 +716,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -801,8 +794,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -867,8 +860,8 @@ func TestCreateGrantFromEmail(t *testing.T) {
 		t.Fatalf("Error compiling regular expression for emailed codes: %s", err)
 	}
 
-	for name, tc := range tests {
-		name, tc := name, tc
+	for name, testCase := range tests { //nolint:paralleltest // false positive, it's fine, tooling error, see https://github.com/kunwardeep/paralleltest/issues/14
+		name, testCase := name, testCase
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -879,28 +872,28 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			logger := yall.New(testLogger.New(t, yall.Severity(logLevel)))
 
 			params := url.Values{}
-			if tc.params != nil {
-				for k, v := range tc.params {
+			if testCase.params != nil {
+				for k, v := range testCase.params {
 					params[k] = append(params[k], v...)
 				}
 			}
 			requestPath := "/authorize?" + params.Encode()
-			if tc.overridePath != "" {
-				requestPath = tc.overridePath
+			if testCase.overridePath != "" {
+				requestPath = testCase.overridePath
 			}
 			method := http.MethodPost
-			if tc.overrideMethod != "" {
-				method = tc.overrideMethod
+			if testCase.overrideMethod != "" {
+				method = testCase.overrideMethod
 			}
-			req := httptest.NewRequest(method, requestPath, bytes.NewBuffer([]byte(tc.body)))
-			req.Header = tc.headers
+			req := httptest.NewRequest(method, requestPath, bytes.NewBuffer([]byte(testCase.body)))
+			req.Header = testCase.headers
 			req = req.WithContext(yall.InContext(req.Context(), logger))
-			w := httptest.NewRecorder()
+			respRec := httptest.NewRecorder()
 			acctsStorer, err := accountsMemory.NewStorer()
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for accounts: %s", err)
 			}
-			for _, acct := range tc.existingAccounts {
+			for _, acct := range testCase.existingAccounts {
 				err = acctsStorer.Create(context.Background(), acct)
 				if err != nil {
 					t.Fatalf("error populating account fixture %+v: %s", acct, err)
@@ -910,7 +903,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for clients: %s", err)
 			}
-			for _, client := range tc.existingClients {
+			for _, client := range testCase.existingClients {
 				err = clientsStorer.Create(context.Background(), client)
 				if err != nil {
 					t.Fatalf("error populating client fixture %+v: %s", client, err)
@@ -924,7 +917,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for scopes: %s", err)
 			}
-			for _, scope := range tc.existingScopes {
+			for _, scope := range testCase.existingScopes {
 				err = scopesStorer.Create(context.Background(), scope)
 				if err != nil {
 					t.Fatalf("error populating scope fixture %+v: %s", scope, err)
@@ -934,12 +927,16 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for tokens: %s", err)
 			}
-			privateKey, err := rsa.GenerateKey(rand.Reader, 128)
+			privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 			if err != nil {
 				t.Fatalf("error creating private key: %s", err)
 			}
+			publicKey, ok := privateKey.Public().(*rsa.PublicKey)
+			if !ok {
+				t.Fatalf("expected public key to be an *rsa.PublicKey, got a %T", privateKey.Public())
+			}
 			emailer := new(MemoryEmailer)
-			s := Service{
+			service := Service{
 				TokenExpiresIn: 600,
 				Accounts: accounts.Dependencies{
 					Storer: acctsStorer,
@@ -951,7 +948,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				Refresh: tokens.Dependencies{
 					Storer:        tokensStorer,
 					JWTPrivateKey: privateKey,
-					JWTPublicKey:  privateKey.Public().(*rsa.PublicKey),
+					JWTPublicKey:  publicKey,
 					ServiceID:     "test",
 				},
 				Scopes: scopes.Dependencies{
@@ -959,49 +956,49 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				},
 				Sessions: sessions.Dependencies{
 					JWTPrivateKey: privateKey,
-					JWTPublicKey:  privateKey.Public().(*rsa.PublicKey),
+					JWTPublicKey:  publicKey,
 					ServiceID:     "test",
 				},
 				Log:     logger,
 				Emailer: emailer,
 			}
-			s.handleGrantRequest(w, req)
-			resp := w.Result()
+			service.handleGrantRequest(respRec, req)
+			resp := respRec.Result()
 			defer resp.Body.Close()
 			gotBody, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Fatalf("Error reading response body: %v", err)
 			}
-			if resp.StatusCode != tc.expectedStatus {
-				t.Errorf("Expected response status code to be %d, got %d", tc.expectedStatus, resp.StatusCode)
+			if resp.StatusCode != testCase.expectedStatus {
+				t.Errorf("Expected response status code to be %d, got %d", testCase.expectedStatus, resp.StatusCode)
 			}
 			switch strings.ToLower(resp.Header.Get("Content-Type")) {
 			case "application/json":
 				opts := jsondiff.DefaultConsoleOptions()
-				match, diff := jsondiff.Compare([]byte(tc.expectedBody), gotBody, &opts)
+				match, diff := jsondiff.Compare([]byte(testCase.expectedBody), gotBody, &opts)
 				if match != jsondiff.FullMatch {
 					t.Errorf("Unexpected response body: %s", diff)
 				}
 				if match > jsondiff.NoMatch {
-					t.Logf("first argument: %s", tc.expectedBody)
+					t.Logf("first argument: %s", testCase.expectedBody)
 					t.Logf("second argument: %s", gotBody)
 				}
 			default:
-				if string(gotBody) != tc.expectedBody {
-					t.Errorf("Expected response body to be %q, got %q", tc.expectedBody, string(gotBody))
+				if string(gotBody) != testCase.expectedBody {
+					t.Errorf("Expected response body to be %q, got %q", testCase.expectedBody, string(gotBody))
 				}
 			}
-			if emailer.LastEmail != tc.expectedEmail {
-				t.Errorf("Expected email to be sent to %q, was sent to %q", tc.expectedEmail, emailer.LastEmail)
+			if emailer.LastEmail != testCase.expectedEmail {
+				t.Errorf("Expected email to be sent to %q, was sent to %q", testCase.expectedEmail, emailer.LastEmail)
 			}
-			if !tc.expectedCode {
+			if !testCase.expectedCode {
 				return
 			}
 			if !codeRE.MatchString(emailer.LastCode) {
 				t.Fatalf("Expected an email code, but %q doesn't match our expected code format", emailer.LastCode)
 			}
 
-			grant, err := s.Grants.Storer.GetGrantBySource(context.Background(), "email", emailer.LastCode)
+			grant, err := service.Grants.Storer.GetGrantBySource(context.Background(), "email", emailer.LastCode)
 			if err != nil {
 				t.Fatalf("Error getting grant %q from storer: %s", emailer.LastCode, err)
 			}
@@ -1018,11 +1015,11 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				t.Errorf("Grant expected to be unused, says it was used at %s", grant.UsedAt)
 			}
 
-			if len(grant.Scopes) != len(tc.expectedScopes) {
-				t.Errorf("Expected grant to have %d scopes, has %d", len(tc.expectedScopes), len(grant.Scopes))
+			if len(grant.Scopes) != len(testCase.expectedScopes) {
+				t.Errorf("Expected grant to have %d scopes, has %d", len(testCase.expectedScopes), len(grant.Scopes))
 			}
 
-			for _, expected := range tc.expectedScopes {
+			for _, expected := range testCase.expectedScopes {
 				var found bool
 				for _, got := range grant.Scopes {
 					if expected == got {
@@ -1037,7 +1034,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 
 			for _, got := range grant.Scopes {
 				var found bool
-				for _, expected := range tc.expectedScopes {
+				for _, expected := range testCase.expectedScopes {
 					if expected == got {
 						found = true
 						break
@@ -1048,16 +1045,16 @@ func TestCreateGrantFromEmail(t *testing.T) {
 				}
 			}
 
-			if grant.AccountID != tc.expectedAccountID {
-				t.Errorf("Expected grant to have account ID %q, has %q", tc.expectedAccountID, grant.AccountID)
+			if grant.AccountID != testCase.expectedAccountID {
+				t.Errorf("Expected grant to have account ID %q, has %q", testCase.expectedAccountID, grant.AccountID)
 			}
 
-			if grant.ProfileID != tc.expectedProfileID {
-				t.Errorf("Expected grant to have profile ID %q, has %q", tc.expectedProfileID, grant.ProfileID)
+			if grant.ProfileID != testCase.expectedProfileID {
+				t.Errorf("Expected grant to have profile ID %q, has %q", testCase.expectedProfileID, grant.ProfileID)
 			}
 
-			if grant.ClientID != tc.expectedClientID {
-				t.Errorf("Expected grant to have client ID %q, has %q", tc.expectedClientID, grant.ClientID)
+			if grant.ClientID != testCase.expectedClientID {
+				t.Errorf("Expected grant to have client ID %q, has %q", testCase.expectedClientID, grant.ClientID)
 			}
 
 			if grant.Used {
@@ -1069,6 +1066,14 @@ func TestCreateGrantFromEmail(t *testing.T) {
 
 func TestCreateToken(t *testing.T) {
 	t.Parallel()
+
+	change, err := clients.ChangeSecret([]byte("testing"))
+	if err != nil {
+		t.Fatalf("error generating secret hash: %v", err)
+	}
+
+	secretHash := *change.SecretHash
+	secretScheme := *change.SecretScheme
 
 	type testCase struct {
 		// existingAccounts are the account fixtures that should be
@@ -1134,8 +1139,8 @@ func TestCreateToken(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -1188,8 +1193,8 @@ func TestCreateToken(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -1239,8 +1244,8 @@ func TestCreateToken(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -1291,8 +1296,8 @@ func TestCreateToken(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -1345,8 +1350,8 @@ func TestCreateToken(t *testing.T) {
 				{
 					ID:           "testclient",
 					Name:         "Testing Client",
-					SecretHash:   secretHash(t, "testing"),
-					SecretScheme: secretScheme(t, "testing"),
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
 					Confidential: true,
 					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
 					CreatedBy:    "testing",
@@ -1385,8 +1390,8 @@ func TestCreateToken(t *testing.T) {
 		},
 	}
 
-	for name, tc := range tests {
-		name, tc := name, tc
+	for name, testCase := range tests { //nolint:paralleltest // false positive, it's fine, tooling error, see https://github.com/kunwardeep/paralleltest/issues/14
+		name, testCase := name, testCase
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1400,7 +1405,7 @@ func TestCreateToken(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for accounts: %s", err)
 			}
-			for _, acct := range tc.existingAccounts {
+			for _, acct := range testCase.existingAccounts {
 				err = acctsStorer.Create(context.Background(), acct)
 				if err != nil {
 					t.Fatalf("error populating account fixture %+v: %s", acct, err)
@@ -1410,7 +1415,7 @@ func TestCreateToken(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for clients: %s", err)
 			}
-			for _, client := range tc.existingClients {
+			for _, client := range testCase.existingClients {
 				err = clientsStorer.Create(context.Background(), client)
 				if err != nil {
 					t.Fatalf("error populating client fixture %+v: %s", client, err)
@@ -1424,7 +1429,7 @@ func TestCreateToken(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for scopes: %s", err)
 			}
-			for _, scope := range tc.existingScopes {
+			for _, scope := range testCase.existingScopes {
 				err = scopesStorer.Create(context.Background(), scope)
 				if err != nil {
 					t.Fatalf("error populating scope fixture %+v: %s", scope, err)
@@ -1434,18 +1439,22 @@ func TestCreateToken(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for tokens: %s", err)
 			}
-			for _, token := range tc.existingTokens {
+			for _, token := range testCase.existingTokens {
 				err = tokensStorer.CreateToken(context.Background(), token)
 				if err != nil {
 					t.Fatalf("error populating token fixture %+v: %s", token, err)
 				}
 			}
-			privateKey, err := rsa.GenerateKey(rand.Reader, 128)
+			privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 			if err != nil {
 				t.Fatalf("error creating private key: %s", err)
 			}
+			publicKey, ok := privateKey.Public().(*rsa.PublicKey)
+			if !ok {
+				t.Fatalf("unexpected public key type, expected *rsa.PublicKey, got %T", privateKey.Public())
+			}
 			emailer := new(MemoryEmailer)
-			s := Service{
+			service := Service{
 				TokenExpiresIn: 600,
 				Accounts: accounts.Dependencies{
 					Storer: acctsStorer,
@@ -1457,7 +1466,7 @@ func TestCreateToken(t *testing.T) {
 				Refresh: tokens.Dependencies{
 					Storer:        tokensStorer,
 					JWTPrivateKey: privateKey,
-					JWTPublicKey:  privateKey.Public().(*rsa.PublicKey),
+					JWTPublicKey:  publicKey,
 					ServiceID:     "test",
 				},
 				Scopes: scopes.Dependencies{
@@ -1465,7 +1474,7 @@ func TestCreateToken(t *testing.T) {
 				},
 				Sessions: sessions.Dependencies{
 					JWTPrivateKey: privateKey,
-					JWTPublicKey:  privateKey.Public().(*rsa.PublicKey),
+					JWTPublicKey:  publicKey,
 					ServiceID:     "test",
 				},
 				Log:     logger,
@@ -1474,26 +1483,26 @@ func TestCreateToken(t *testing.T) {
 
 			// create request
 			params := url.Values{}
-			if tc.params != nil {
-				for k, v := range tc.params {
+			if testCase.params != nil {
+				for k, v := range testCase.params {
 					params[k] = append(params[k], v...)
 				}
 			}
 			requestPath := "/token?" + params.Encode()
-			if tc.overridePath != "" {
-				requestPath = tc.overridePath
+			if testCase.overridePath != "" {
+				requestPath = testCase.overridePath
 			}
 			method := http.MethodPost
-			if tc.overrideMethod != "" {
-				method = tc.overrideMethod
+			if testCase.overrideMethod != "" {
+				method = testCase.overrideMethod
 			}
-			req := httptest.NewRequest(method, requestPath, bytes.NewBuffer([]byte(tc.body)))
-			req.Header = tc.headers
+			req := httptest.NewRequest(method, requestPath, bytes.NewBuffer([]byte(testCase.body)))
+			req.Header = testCase.headers
 			req = req.WithContext(yall.InContext(req.Context(), logger))
 			w := httptest.NewRecorder()
 
 			// do the request
-			s.handleAccessTokenRequest(w, req)
+			service.handleAccessTokenRequest(w, req)
 			resp := w.Result()
 			defer resp.Body.Close()
 			gotBody, err := io.ReadAll(resp.Body)
@@ -1502,23 +1511,23 @@ func TestCreateToken(t *testing.T) {
 			}
 
 			// check that the HTTP level stuff is what we expected
-			if resp.StatusCode != tc.expectedStatus {
-				t.Errorf("Expected response status code to be %d, got %d", tc.expectedStatus, resp.StatusCode)
+			if resp.StatusCode != testCase.expectedStatus {
+				t.Errorf("Expected response status code to be %d, got %d", testCase.expectedStatus, resp.StatusCode)
 			}
 			switch strings.ToLower(resp.Header.Get("Content-Type")) {
 			case "application/json":
 				opts := jsondiff.DefaultConsoleOptions()
-				match, diff := jsondiff.Compare([]byte(tc.expectedBody), gotBody, &opts)
+				match, diff := jsondiff.Compare([]byte(testCase.expectedBody), gotBody, &opts)
 				if match != jsondiff.FullMatch {
 					t.Errorf("Unexpected response body: %s", diff)
 				}
 				if match > jsondiff.NoMatch {
-					t.Logf("first argument: %s", tc.expectedBody)
+					t.Logf("first argument: %s", testCase.expectedBody)
 					t.Logf("second argument: %s", gotBody)
 				}
 			default:
-				if string(gotBody) != tc.expectedBody {
-					t.Errorf("Expected response body to be %q, got %q", tc.expectedBody, string(gotBody))
+				if string(gotBody) != testCase.expectedBody {
+					t.Errorf("Expected response body to be %q, got %q", testCase.expectedBody, string(gotBody))
 				}
 			}
 

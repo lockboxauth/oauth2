@@ -23,6 +23,10 @@ func logEndpoint(h http.Handler) http.Handler {
 	})
 }
 
+// Server returns an `http.Handler` that will serve two OAuth2-esque endpoints,
+// /token and /authorize. If this `http.Handler` will be served as a path from
+// a ServeMux, like "/auth/", `prefix` should be set to that path to allow the
+// `http.Handler`'s router to accurately route to the endpoints.
 func (s Service) Server(prefix string) http.Handler {
 	var router trout.Router
 	router.SetPrefix(prefix)

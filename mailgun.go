@@ -10,6 +10,8 @@ import (
 	yall "yall.in"
 )
 
+// Mailgun is an implementation of the `emailer` interface that sends mail
+// using the Mailgun API.
 type Mailgun struct {
 	From          string
 	Subject       string
@@ -18,15 +20,24 @@ type Mailgun struct {
 	Client        *mailgun.MailgunImpl
 }
 
-type tmplData struct {
+// MailgunTemplateData is the package of data that gets passed to the
+// text/template and html/template Execute methods and is available within the
+// templates.
+type MailgunTemplateData struct {
+	// The authorization code that needs to be exchanged for a session.
 	Code string
 }
 
+// SendMail sends the specified `code` to the specified `email` using Mailgun's
+// API. The mail will have `m.Subject` as a subject and use `m.PlainTextTmpl`
+// and `m.HTMLTmpl` as the plain-text and HTML bodies, respectively. The
+// templates are given a `MailgunTemplateData` variable as their `data`
+// argument.
 func (m Mailgun) SendMail(ctx context.Context, email, code string) error {
 	log := yall.FromContext(ctx)
 	log = log.WithField("email", email)
 	var textBody, htmlBody strings.Builder
-	data := tmplData{
+	data := MailgunTemplateData{
 		Code: code,
 	}
 	err := m.PlainTextTmpl.Execute(&textBody, data)
