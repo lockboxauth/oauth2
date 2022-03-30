@@ -4,7 +4,7 @@ require (
 	darlinggo.co/trout/v2 v2.1.1
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/hashicorp/go-uuid v1.0.2
-	github.com/mailgun/mailgun-go/v4 v4.6.0
+	github.com/mailgun/mailgun-go/v4 v4.6.1
 	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249
 	impractical.co/googleid v0.2.1
 	lockbox.dev/accounts v0.4.0
