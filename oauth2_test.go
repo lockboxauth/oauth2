@@ -964,7 +964,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			}
 			service.handleGrantRequest(respRec, req)
 			resp := respRec.Result()
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck // it probably doesn't matter
 			gotBody, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Fatalf("Error reading response body: %v", err)
@@ -1504,7 +1504,7 @@ func TestCreateToken(t *testing.T) {
 			// do the request
 			service.handleAccessTokenRequest(w, req)
 			resp := w.Result()
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck // it's probably fine
 			gotBody, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Fatalf("Error reading response body: %v", err)

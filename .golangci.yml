@@ -632,7 +632,7 @@ linters-settings:
   gosimple:
     # Select the Go version to target.
     # Default: 1.13
-    go: "1.17"
+    go: "1.18"
     # https://staticcheck.io/docs/options#checks
     checks: [ "all" ]
 
@@ -1396,7 +1396,7 @@ linters-settings:
     # https://staticcheck.io/docs/options#http_status_code_whitelist
     # http-status-code-whitelist: [ "200", "400", "404", "500" ]
 
-  tagliatelle:
+  #tagliatelle:
     # Check the struck tag name case.
     case:
       # Use the struct field name to check the name of the struct tag.
@@ -1405,10 +1405,10 @@ linters-settings:
       rules:
         # Any struct tag type can be used.
         # Support string case: `camel`, `pascal`, `kebab`, `snake`, `goCamel`, `goPascal`, `goKebab`, `goSnake`, `upper`, `lower`
-        json: camel
-        yaml: camel
-        xml: camel
-        hcl: snake
+        #json: goCamel
+        #yaml: camel
+        #xml: camel
+        #hcl: snake
         # bson: camel
         # avro: snake
         # mapstructure: kebab
@@ -1422,7 +1422,7 @@ linters-settings:
     # regexp pattern to skip files
     # skip-regexp: (export|internal)_test\.go
 
-  thelper:
+  #thelper:
     # The following configurations enable all checks.
     # All checks are enabled by default.
     # test:
@@ -1482,6 +1482,7 @@ linters-settings:
     # Default: []
     ignore-names:
       - err
+      - id
     # Optional list of variable declarations that should be ignored completely.
     # Entries must be in the form of "<variable name> <type>" or "<variable name> *<type>"
     # for variables, or "const <name>" for constants.
@@ -1673,10 +1674,10 @@ linters:
     - staticcheck
     - structcheck
     # - stylecheck
-    - tagliatelle
+    # - tagliatelle
     - tenv
     # - testpackage
-    - thelper
+    # - thelper
     - tparallel
     - typecheck
     - unconvert
@@ -1843,7 +1844,7 @@ issues:
   # it can be disabled by this option.
   # To list all excluded by default patterns execute `golangci-lint run --help`.
   # Default: true.
-  # exclude-use-default: false
+  exclude-use-default: false
 
   # If set to true exclude and exclude-rules regular expressions become case-sensitive.
   # Default: false
