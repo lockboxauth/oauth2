@@ -860,7 +860,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 		t.Fatalf("Error compiling regular expression for emailed codes: %s", err)
 	}
 
-	for name, testCase := range tests { //nolint:paralleltest // false positive, it's fine, tooling error, see https://github.com/kunwardeep/paralleltest/issues/14
+	for name, testCase := range tests {
 		name, testCase := name, testCase
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -1390,7 +1390,7 @@ func TestCreateToken(t *testing.T) {
 		},
 	}
 
-	for name, testCase := range tests { //nolint:paralleltest // false positive, it's fine, tooling error, see https://github.com/kunwardeep/paralleltest/issues/14
+	for name, testCase := range tests {
 		name, testCase := name, testCase
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
