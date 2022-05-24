@@ -302,8 +302,8 @@ github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-b
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
 github.com/lyft/protoc-gen-validate v0.0.13/go.mod h1:XbGvPuh87YZc5TdIa2/I4pLk0QoUACkjt2znoq26NVQ=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
-github.com/mailgun/mailgun-go/v4 v4.6.1 h1:ETvvkcHd6I+FwFgAwZSf02RXKFA0Rg3djOFic//RAu0=
-github.com/mailgun/mailgun-go/v4 v4.6.1/go.mod h1:FJlF9rI5cQT+mrwujtJjPMbIVy3Ebor9bKTVsJ0QU40=
+github.com/mailgun/mailgun-go/v4 v4.6.2 h1:w65d1Zz/9Ty42itBNvtL5DWyhdFxFlqnaTd7ROhp2jI=
+github.com/mailgun/mailgun-go/v4 v4.6.2/go.mod h1:FJlF9rI5cQT+mrwujtJjPMbIVy3Ebor9bKTVsJ0QU40=
 github.com/markbates/errx v1.1.0/go.mod h1:PLa46Oex9KNbVDZhKel8v1OT7hD5JZ2eI7AHhA0wswc=
 github.com/markbates/oncer v1.0.0/go.mod h1:Z59JA581E9GP6w96jai+TGqafHPW+cPfRxz2aSZ0mcI=
 github.com/markbates/safe v1.0.1/go.mod h1:nAqgmRi7cY2nqMc92/bSEeQA+R4OheNU2T1kNSCBdG0=
