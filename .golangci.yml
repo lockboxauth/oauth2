@@ -863,7 +863,7 @@ linters-settings:
     # Default: false
     # var-require-grouping: true
 
-  ifshort:
+  # ifshort:
     # Maximum length of variable declaration measured in number of lines, after which linter won't suggest using short syntax.
     # Has higher priority than max-decl-chars.
     # Default: 1
@@ -1607,7 +1607,7 @@ linters:
     - containedctx
     - contextcheck
     # - cyclop
-    - deadcode
+    # - deadcode
     # - decorder
     # - depguard
     - dogsled
@@ -1646,7 +1646,7 @@ linters:
     - gosimple
     - govet
     - grouper
-    - ifshort
+    # - ifshort
     # - importas
     - ineffassign
     # - interfacer
@@ -1672,7 +1672,7 @@ linters:
     # - scopelint
     - sqlclosecheck
     - staticcheck
-    - structcheck
+    # - structcheck
     # - stylecheck
     # - tagliatelle
     - tenv
@@ -1683,7 +1683,7 @@ linters:
     - unconvert
     - unparam
     - unused
-    - varcheck
+    # - varcheck
     - varnamelen
     - wastedassign
     # - whitespace
