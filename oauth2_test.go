@@ -142,10 +142,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 204,
 			expectedEmail:  "test@lockbox.dev",
@@ -203,7 +203,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
 			},
@@ -256,10 +256,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: `{"response_type": "email", "email": "test@lockbox.dev"}`,
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/json"},
+				"Content-Type": {"application/json"},
 			},
 			expectedStatus: http.StatusUnsupportedMediaType,
 			expectedBody:   `{"error": "unsupported_content_type"}`,
@@ -296,10 +296,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 400,
 			expectedBody:   `{"error": "invalid_request"}`,
@@ -345,10 +345,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 400,
 			expectedBody:   `{"error": "invalid_request"}`,
@@ -400,7 +400,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: http.StatusUnauthorized,
 			expectedBody:   `{"error": "invalid_client"}`,
@@ -451,10 +451,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 204,
 			expectedEmail:  "test@lockbox.dev",
@@ -513,7 +513,7 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev&client_id=testclient&client_secret=testing",
 			headers: map[string][]string{
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 204,
 			expectedEmail:  "test@lockbox.dev",
@@ -572,10 +572,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("fakeclient:testing123")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 401,
 			expectedBody:   `{"error": "invalid_client"}`,
@@ -626,10 +626,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing1234")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 401,
 			expectedBody:   `{"error": "invalid_client"}`,
@@ -681,10 +681,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev&scope=https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fdefault%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-default",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 204,
 			expectedEmail:  "test@lockbox.dev",
@@ -758,10 +758,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev&scope=https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fdefault%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fincluded%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-included%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fexcluded%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-excluded",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 204,
 			expectedEmail:  "test@lockbox.dev",
@@ -836,10 +836,10 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			},
 			body: "response_type=email&email=test@lockbox.dev&scope=https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fdefault%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fincluded%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-included%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fexcluded%20https%3A%2F%2Fscopes.lockbox.dev%2Ftesting%2Fnot-excluded",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 204,
 			expectedEmail:  "test@lockbox.dev",
@@ -1164,7 +1164,7 @@ func TestCreateToken(t *testing.T) {
 			// TODO: make body otherwise correct
 			body: "response_type=email&email=test@lockbox.dev",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
 			},
@@ -1218,10 +1218,10 @@ func TestCreateToken(t *testing.T) {
 			// TODO: make body have the right fields, just in JSON format
 			body: `{"response_type": "email", "email": "test@lockbox.dev"}`,
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
 				},
-				"Content-Type": []string{"application/json"},
+				"Content-Type": {"application/json"},
 			},
 			expectedStatus: http.StatusUnsupportedMediaType,
 			expectedBody:   `{"error": "unsupported_content_type"}`,
@@ -1274,7 +1274,7 @@ func TestCreateToken(t *testing.T) {
 			// TODO: make body otherwise correct
 			body: "grant_type=code",
 			headers: map[string][]string{
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: http.StatusUnauthorized,
 			expectedBody:   `{"error": "invalid_client"}`,
@@ -1325,10 +1325,10 @@ func TestCreateToken(t *testing.T) {
 			},
 			body: "grant_type=code",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("fakeclient:testing123")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 401,
 			expectedBody:   `{"error": "invalid_client"}`,
@@ -1380,10 +1380,10 @@ func TestCreateToken(t *testing.T) {
 			// TODO: make body otherwise correct
 			body: "grant_type=code",
 			headers: map[string][]string{
-				"Authorization": []string{
+				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing1234")),
 				},
-				"Content-Type": []string{"application/x-www-form-urlencoded"},
+				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
 			expectedStatus: 401,
 			expectedBody:   `{"error": "invalid_client"}`,
