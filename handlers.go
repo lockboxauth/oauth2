@@ -169,7 +169,7 @@ func isContentType(ctx context.Context, r *http.Request, contentTypes ...string)
 	return false
 }
 
-// nolint: contextcheck // this is a false positive, we're actually chaining contexts correctly
+//nolint: contextcheck // this is a false positive, we're actually chaining contexts correctly
 func (s Service) redirectError(w http.ResponseWriter, r *http.Request, apiErr APIError, redirBase string) {
 	if redirBase == "" {
 		yall.FromContext(r.Context()).Error("redirecting but no redirectURL set")
@@ -189,7 +189,7 @@ func (s Service) redirectError(w http.ResponseWriter, r *http.Request, apiErr AP
 	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
-// nolint: contextcheck // this is a false positive, we're actually chaining contexts correctly
+//nolint: contextcheck // this is a false positive, we're actually chaining contexts correctly
 func (Service) renderError(w http.ResponseWriter, r *http.Request, apiErr APIError) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(apiErr.Code)
