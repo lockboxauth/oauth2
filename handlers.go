@@ -278,14 +278,16 @@ func (s Service) validateClientCredentials(ctx context.Context, clientID, client
 		log.WithError(err).Error("error retrieving client")
 		return serverError
 	}
-	err = client.CheckSecret(clientSecret)
-	if err != nil {
-		if errors.Is(err, clients.ErrIncorrectSecret) {
-			log.Debug("incorrect client secret")
-			return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
+	if redirectURI == "" {
+		err = client.CheckSecret(clientSecret)
+		if err != nil {
+			if errors.Is(err, clients.ErrIncorrectSecret) {
+				log.Debug("incorrect client secret")
+				return APIError{Code: http.StatusUnauthorized, Error: "invalid_client"}
+			}
+			log.WithError(err).Error("error checking client secret")
+			return serverError
 		}
-		log.WithError(err).Error("error checking client secret")
-		return serverError
 	}
 	return APIError{}
 }
@@ -457,7 +459,7 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 		// if g is nil, that means it's not a match for our supported types
 		log.Debug("Unsupported grant type")
 		s.renderError(w, r, APIError{
-			Error: "unsupported_response_type",
+			Error: "unsupported_grant_type",
 			Code:  http.StatusBadRequest,
 		})
 		return
@@ -533,19 +535,26 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 		Time:  time.Now(),
 	})
 
-	if errors.Is(err, grants.ErrGrantAlreadyUsed) || errors.Is(err, grants.ErrGrantNotFound) { //nolint: nestif // I don't know how to make this simpler easily.
-		if errors.Is(err, grants.ErrGrantAlreadyUsed) {
-			log.Debug("grant reuse attempted")
-		} else {
-			log.Debug("unknown grant presented")
-		}
+	if errors.Is(err, grants.ErrGrantAlreadyUsed) {
+		log.Debug("grant reuse attempted")
 		if granter.Redirects() {
 			s.redirectError(w, r, APIError{Code: http.StatusBadRequest, Error: "invalid_grant"}, redirectURI)
 			return
 		}
 		s.renderError(w, r, APIError{Code: http.StatusBadRequest, Error: "invalid_grant"})
 		return
-	} else if err != nil {
+	}
+	// our granter.Validate call *should* catch this, but to be safe...
+	if errors.Is(err, grants.ErrGrantNotFound) {
+		log.Debug("unknown grant presented")
+		if granter.Redirects() {
+			s.redirectError(w, r, APIError{Code: http.StatusBadRequest, Error: "invalid_grant"}, redirectURI)
+			return
+		}
+		s.renderError(w, r, APIError{Code: http.StatusBadRequest, Error: "invalid_grant"})
+		return
+	}
+	if err != nil {
 		log.WithError(err).Error("error exchanging grant")
 		if granter.Redirects() {
 			s.redirectError(w, r, serverError, redirectURI)
@@ -575,6 +584,12 @@ func (s Service) handleAccessTokenRequest(w http.ResponseWriter, r *http.Request
 	err = granter.Granted(yall.InContext(r.Context(), log))
 	if err != nil {
 		log.WithError(err).Error("Error marking grant as used")
+		if granter.Redirects() {
+			s.redirectError(w, r, serverError, redirectURI)
+			return
+		}
+		s.renderError(w, r, serverError)
+		return
 	}
 
 	log.Debug("marked grant as used")

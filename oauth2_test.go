@@ -28,10 +28,21 @@ import (
 	"lockbox.dev/tokens"
 	tokensMemory "lockbox.dev/tokens/storers/memory"
 
+	uuid "github.com/hashicorp/go-uuid"
 	"github.com/nsf/jsondiff"
 	yall "yall.in"
 	testLogger "yall.in/testing"
 )
+
+func uuidOrFail(t *testing.T) string {
+	t.Helper()
+
+	id, err := uuid.GenerateUUID()
+	if err != nil {
+		t.Fatalf("Unexpected error generating ID: %s", err.Error())
+	}
+	return id
+}
 
 func TestCreateGrantFromEmail(t *testing.T) {
 	t.Parallel()
@@ -853,6 +864,160 @@ func TestCreateGrantFromEmail(t *testing.T) {
 			expectedProfileID: "testing123",
 			expectedClientID:  "testclient",
 		},
+
+		// test a request that's got an unparseable body
+		"unparseable": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			body: "response_type;",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "invalid_request"}`,
+		},
+
+		// test a request that's missing the response_type
+		"no-response-type": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			body: "email=test@lockbox.dev",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "unsupported_response_type"}`,
+		},
+
+		// test an invalid response_type
+		"invalid-response-type": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+			},
+			body: "response_type=email2&email=test@lockbox.dev",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "unsupported_response_type"}`,
+		},
+		// TODO: test an error getting a redirect URI
+		// TODO: test an error checking scopes
+		// TODO: test an error filling the grant
+		// TODO: test an error creating the grant
+		// TODO: test an error handling OOB grants
+		// TODO: test a redirect grant
+		// TODO: test an invalid grantCreator.ResponseMethod()
 	}
 
 	codeRE, err := regexp.Compile("^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}|[A-Za-z0-9-_]{3})?$")
@@ -1092,6 +1257,10 @@ func TestCreateToken(t *testing.T) {
 		// populated before the request
 		existingTokens []tokens.RefreshToken
 
+		// existingGrants are the grant fixtures that should be
+		// populated before the request
+		existingGrants []grants.Grant
+
 		// params are the URL parameters that should be included in the
 		// request
 		params url.Values
@@ -1147,6 +1316,18 @@ func TestCreateToken(t *testing.T) {
 					CreatedByIP:  "127.0.0.1",
 				},
 			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
 			existingScopes: []scopes.Scope{
 				{
 					ID:           "https://scopes.lockbox.dev/testing/default",
@@ -1161,8 +1342,7 @@ func TestCreateToken(t *testing.T) {
 					IsDefault:    true,
 				},
 			},
-			// TODO: make body otherwise correct
-			body: "response_type=email&email=test@lockbox.dev",
+			body: "grant_type=email&code=testcode",
 			headers: map[string][]string{
 				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
@@ -1201,6 +1381,18 @@ func TestCreateToken(t *testing.T) {
 					CreatedByIP:  "127.0.0.1",
 				},
 			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
 			existingScopes: []scopes.Scope{
 				{
 					ID:           "https://scopes.lockbox.dev/testing/default",
@@ -1215,8 +1407,7 @@ func TestCreateToken(t *testing.T) {
 					IsDefault:    true,
 				},
 			},
-			// TODO: make body have the right fields, just in JSON format
-			body: `{"response_type": "email", "email": "test@lockbox.dev"}`,
+			body: `{"grant_type": "email", "code": "testcode"}`,
 			headers: map[string][]string{
 				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
@@ -1252,6 +1443,18 @@ func TestCreateToken(t *testing.T) {
 					CreatedByIP:  "127.0.0.1",
 				},
 			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "code",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
 			existingScopes: []scopes.Scope{
 				{
 					ID:           "https://scopes.lockbox.dev/testing/default",
@@ -1271,8 +1474,7 @@ func TestCreateToken(t *testing.T) {
 					ClientPolicy: scopes.PolicyAllowAll,
 				},
 			},
-			// TODO: make body otherwise correct
-			body: "grant_type=code",
+			body: "grant_type=email&code=testcode",
 			headers: map[string][]string{
 				"Content-Type": {"application/x-www-form-urlencoded"},
 			},
@@ -1304,6 +1506,18 @@ func TestCreateToken(t *testing.T) {
 					CreatedByIP:  "127.0.0.1",
 				},
 			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
 			existingScopes: []scopes.Scope{
 				{
 					ID:           "https://scopes.lockbox.dev/testing/default",
@@ -1323,7 +1537,7 @@ func TestCreateToken(t *testing.T) {
 					ClientPolicy: scopes.PolicyAllowAll,
 				},
 			},
-			body: "grant_type=code",
+			body: "grant_type=email&code=testcode",
 			headers: map[string][]string{
 				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("fakeclient:testing123")),
@@ -1358,6 +1572,18 @@ func TestCreateToken(t *testing.T) {
 					CreatedByIP:  "127.0.0.1",
 				},
 			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
 			existingScopes: []scopes.Scope{
 				{
 					ID:           "https://scopes.lockbox.dev/testing/default",
@@ -1377,8 +1603,7 @@ func TestCreateToken(t *testing.T) {
 					ClientPolicy: scopes.PolicyAllowAll,
 				},
 			},
-			// TODO: make body otherwise correct
-			body: "grant_type=code",
+			body: "grant_type=email&code=testcode",
 			headers: map[string][]string{
 				"Authorization": {
 					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing1234")),
@@ -1388,6 +1613,504 @@ func TestCreateToken(t *testing.T) {
 			expectedStatus: 401,
 			expectedBody:   `{"error": "invalid_client"}`,
 		},
+
+		// test omitting the grant_type
+		"missing-grant-type": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			body: "code=testcode",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "unsupported_grant_type"}`,
+		},
+
+		// test an unsupported grant_type
+		"invalid-grant-type": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			body: "grant_type=email2&code=testcode",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "unsupported_grant_type"}`,
+		},
+
+		// test an unparseable body
+		"unparseable-body": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			body: "grant_type;",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "invalid_request"}`,
+		},
+
+		// test passing a redirectURI when the client doesn't have any
+		"redirect-uri-passed-for-client-without-any": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					Confidential: false,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			body: "grant_type=email&code=testcode",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			params: url.Values{
+				"client_id":    []string{"testclient"},
+				"redirect_uri": []string{"https://www.example.com"},
+			},
+			// TODO: should this be an invalid client error?
+			expectedStatus: 500,
+			expectedBody:   `{"error": "server_error"}`,
+		},
+
+		// TODO: test granter validation error with granter that redirects
+
+		// test an invalid grant
+		"invalid-grant-render": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			body: "grant_type=email&code=testcode2",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "invalid_request"}`,
+		},
+
+		// TODO: test error checking scopes with granter that redirects
+
+		// TODO: test error checking scopes with granter that renders
+
+		// TODO: test error creating grant inline with granter that redirects
+
+		// TODO: test error creating grant inline with granter that renders
+
+		// TODO: test error exchanging grant with granter that redirects
+
+		// TODO: test error exchanging grant with granter that renders
+
+		// TODO: test exchanging already-used grant with granter that redirects
+
+		// test exchanging already-used grant with granter that renders
+		"grant-already-used-render": {
+			existingAccounts: []accounts.Account{
+				{
+					ID:             "test@lockbox.dev",
+					ProfileID:      "testing123",
+					Created:        time.Now(),
+					LastUsed:       time.Now().Add(time.Hour * -24),
+					LastSeen:       time.Now().Add(time.Minute * -1),
+					IsRegistration: true,
+				},
+			},
+			existingClients: []clients.Client{
+				{
+					ID:           "testclient",
+					Name:         "Testing Client",
+					SecretHash:   secretHash,
+					SecretScheme: secretScheme,
+					Confidential: true,
+					CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+					CreatedBy:    "testing",
+					CreatedByIP:  "127.0.0.1",
+				},
+			},
+			existingGrants: []grants.Grant{
+				{
+					ID:         uuidOrFail(t),
+					SourceType: "email",
+					SourceID:   "testcode",
+					CreatedAt:  time.Now().Add(time.Minute * -1),
+					AccountID:  "test@lockbox.dev",
+					ProfileID:  "testing123",
+					ClientID:   "testclient",
+					CreateIP:   "127.0.0.1",
+					Used:       true,
+					UseIP:      "127.0.0.1",
+					UsedAt:     time.Now().Add(time.Second * -30),
+				},
+			},
+			existingScopes: []scopes.Scope{
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/default2",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+					IsDefault:    true,
+				},
+				{
+					ID:           "https://scopes.lockbox.dev/testing/not-default",
+					UserPolicy:   scopes.PolicyAllowAll,
+					ClientPolicy: scopes.PolicyAllowAll,
+				},
+			},
+			body: "grant_type=email&code=testcode",
+			headers: map[string][]string{
+				"Authorization": {
+					"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+				},
+				"Content-Type": {"application/x-www-form-urlencoded"},
+			},
+			expectedStatus: 400,
+			expectedBody:   `{"error": "invalid_grant"}`,
+		},
+
+		// TODO: test exchanging non-existent grant with granter that redirects
+
+		// TODO: test error issuing tokens with granter that redirects
+
+		// TODO: test error issuing tokens with granter that renders
+
+		// TODO: test error marking grant as used with granter that redirects
+
+		// TODO: test error marking grant as used with granter that renders
+
+		// TODO: test returning tokens with granter that redirects
+
+		// test returning tokens with granter that renders
+		/*
+			"happy-case-render": {
+				existingAccounts: []accounts.Account{
+					{
+						ID:             "test@lockbox.dev",
+						ProfileID:      "testing123",
+						Created:        time.Now(),
+						LastUsed:       time.Now().Add(time.Hour * -24),
+						LastSeen:       time.Now().Add(time.Minute * -1),
+						IsRegistration: true,
+					},
+				},
+				existingClients: []clients.Client{
+					{
+						ID:           "testclient",
+						Name:         "Testing Client",
+						SecretHash:   secretHash,
+						SecretScheme: secretScheme,
+						Confidential: true,
+						CreatedAt:    time.Now().Add(time.Hour * -24 * 7),
+						CreatedBy:    "testing",
+						CreatedByIP:  "127.0.0.1",
+					},
+				},
+				existingGrants: []grants.Grant{
+					{
+						ID:         uuidOrFail(t),
+						SourceType: "email",
+						SourceID:   "testcode",
+						CreatedAt:  time.Now().Add(time.Minute * -1),
+						AccountID:  "test@lockbox.dev",
+						ProfileID:  "testing123",
+						ClientID:   "testclient",
+						CreateIP:   "127.0.0.1",
+					},
+				},
+				existingScopes: []scopes.Scope{
+					{
+						ID:           "https://scopes.lockbox.dev/testing/default",
+						UserPolicy:   scopes.PolicyAllowAll,
+						ClientPolicy: scopes.PolicyAllowAll,
+						IsDefault:    true,
+					},
+					{
+						ID:           "https://scopes.lockbox.dev/testing/default2",
+						UserPolicy:   scopes.PolicyAllowAll,
+						ClientPolicy: scopes.PolicyAllowAll,
+						IsDefault:    true,
+					},
+					{
+						ID:           "https://scopes.lockbox.dev/testing/not-default",
+						UserPolicy:   scopes.PolicyAllowAll,
+						ClientPolicy: scopes.PolicyAllowAll,
+					},
+				},
+				body: "grant_type=email&code=testcode",
+				headers: map[string][]string{
+					"Authorization": {
+						"Basic " + base64.StdEncoding.EncodeToString([]byte("testclient:testing")),
+					},
+					"Content-Type": {"application/x-www-form-urlencoded"},
+				},
+				expectedStatus: 200,
+				expectedBody:   `{"error": "invalid_request"}`,
+			},
+		*/
 	}
 
 	for name, testCase := range tests {
@@ -1424,6 +2147,12 @@ func TestCreateToken(t *testing.T) {
 			grantsStorer, err := grantsMemory.NewStorer()
 			if err != nil {
 				t.Fatalf("error creating in-memory storer for grants: %s", err)
+			}
+			for _, grant := range testCase.existingGrants {
+				err = grantsStorer.CreateGrant(context.Background(), grant)
+				if err != nil {
+					t.Fatalf("error populating grant fixture %+v: %s", grant, err)
+				}
 			}
 			scopesStorer, err := scopesMemory.NewStorer()
 			if err != nil {
@@ -1517,6 +2246,7 @@ func TestCreateToken(t *testing.T) {
 			switch strings.ToLower(resp.Header.Get("Content-Type")) {
 			case "application/json":
 				opts := jsondiff.DefaultConsoleOptions()
+				// TODO: handle comparing tokens, which we don't know the value of ahead of time
 				match, diff := jsondiff.Compare([]byte(testCase.expectedBody), gotBody, &opts)
 				if match != jsondiff.FullMatch {
 					t.Errorf("Unexpected response body: %s", diff)
